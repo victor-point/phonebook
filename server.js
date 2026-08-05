@@ -69,17 +69,32 @@ app.get('/phonebook.xml', (req, res) => {
     
     let xmlString = '<?xml version="1.0" encoding="UTF-8"?>\n<AddressBook>\n';
     
-    contacts.forEach(contact => {
+    xmlString += '    <pbgroup>\n        <id>1</id>\n        <name>Blacklist</name>\n    </pbgroup>\n';
+    xmlString += '    <pbgroup>\n        <id>2</id>\n        <name>Whitelist</name>\n    </pbgroup>\n';
+    
+    contacts.forEach((contact, index) => {
         xmlString += '    <Contact>\n';
-        if (contact.firstName) xmlString += `        <FirstName>${escapeXML(contact.firstName)}</FirstName>\n`;
-        if (contact.lastName) xmlString += `        <LastName>${escapeXML(contact.lastName)}</LastName>\n`;
+        xmlString += `        <id>${index + 1}</id>\n`;
+        
+        // At least one of these should exist, but let's handle empty safely
+        xmlString += `        <FirstName>${escapeXML(contact.firstName || '')}</FirstName>\n`;
+        xmlString += `        <LastName>${escapeXML(contact.lastName || '')}</LastName>\n`;
+        
+        xmlString += '        <Frequent>0</Frequent>\n';
         
         if (contact.phone) {
-            xmlString += '        <Phone>\n';
+            xmlString += '        <Phone type="Work">\n';
             xmlString += `            <phonenumber>${escapeXML(contact.phone)}</phonenumber>\n`;
-            xmlString += '            <accountindex>0</accountindex>\n';
+            xmlString += '            <accountindex>1</accountindex>\n';
+            xmlString += '        </Phone>\n';
+        } else {
+            xmlString += '        <Phone type="Work">\n';
+            xmlString += `            <phonenumber></phonenumber>\n`;
+            xmlString += '            <accountindex>1</accountindex>\n';
             xmlString += '        </Phone>\n';
         }
+        
+        xmlString += '        <Primary>0</Primary>\n';
         xmlString += '    </Contact>\n';
     });
 
