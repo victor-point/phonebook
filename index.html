@@ -252,8 +252,13 @@
         <div class="toolbar">
             <label class="btn-upload">
                 <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                Import CSV / XML
-                <input type="file" id="fileInput" accept=".xml,.csv">
+                Upload XML
+                <input type="file" id="xmlInput" accept=".xml">
+            </label>
+            <label class="btn-upload">
+                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                Import CSV
+                <input type="file" id="csvInput" accept=".csv">
             </label>
             <button onclick="openModal()">
                 <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
@@ -424,24 +429,46 @@
         }
 
         // File Import Handling
-        document.getElementById('fileInput').addEventListener('change', function(e) {
+        document.getElementById('xmlInput').addEventListener('change', function(e) {
+            handleFileUpload(e, parseXML);
+        });
+
+        document.getElementById('csvInput').addEventListener('change', function(e) {
+            handleFileUpload(e, parseCSV);
+        });
+
+        function handleFileUpload(e, parseFunction) {
             const file = e.target.files[0];
             if (!file) return;
 
             const reader = new FileReader();
-            reader.onload = function(e) {
-                const content = e.target.result;
-                if (file.name.endsWith('.xml')) {
-                    parseXML(content);
-                } else if (file.name.endsWith('.csv')) {
-                    parseCSV(content);
-                } else {
-                    alert("Format file tidak didukung. Gunakan .xml atau .csv");
-                }
-                document.getElementById('fileInput').value = ''; // reset
+            reader.onload = function(event) {
+                const content = event.target.result;
+                parseFunction(content);
+                e.target.value = ''; // reset input
             };
             reader.readAsText(file);
-        });
+        }
+
+        function handleNewContacts(newContacts, sourceType) {
+            if (newContacts.length > 0) {
+                if (contacts.length > 0) {
+                    const replace = confirm(`Ditemukan ${newContacts.length} kontak dari ${sourceType}. Apakah Anda ingin menimpa (replace) kontak yang ada saat ini?\n\n- Klik "OK" untuk menghapus kontak lama dan mengganti dengan yang baru.\n- Klik "Cancel" untuk menggabungkan (append) dengan kontak yang sudah ada.`);
+                    if (replace) {
+                        contacts = newContacts;
+                    } else {
+                        contacts = [...contacts, ...newContacts];
+                    }
+                } else {
+                    contacts = newContacts;
+                }
+                saveToStorage();
+                renderTable();
+                alert(`Berhasil memuat ${newContacts.length} kontak.`);
+            } else {
+                alert(`Tidak ada kontak yang valid ditemukan dalam file ${sourceType}.`);
+            }
+        }
 
         function parseXML(xmlString) {
             try {
@@ -459,14 +486,12 @@
                         return el ? el.textContent : '';
                     };
 
-                    // Handle phone number nested in <Phone> or direct
                     let phoneNum = '';
                     const phoneNode = node.getElementsByTagName("Phone")[0];
                     if (phoneNode) {
                         const pn = phoneNode.getElementsByTagName("phonenumber")[0];
                         if (pn) phoneNum = pn.textContent;
                     } else {
-                        // Some older formats might have it direct
                         phoneNum = getTagVal("PhoneNumber");
                     }
 
@@ -477,15 +502,7 @@
                     });
                 }
 
-                if (newContacts.length > 0) {
-                    contacts = [...contacts, ...newContacts];
-                    saveToStorage();
-                    renderTable();
-                    alert(`Berhasil import ${newContacts.length} kontak dari XML.`);
-                } else {
-                    alert("Tidak ada kontak yang ditemukan dalam file XML.");
-                }
-
+                handleNewContacts(newContacts, 'XML');
             } catch (err) {
                 console.error(err);
                 alert("Gagal memparsing file XML. Pastikan formatnya benar.");
@@ -493,12 +510,10 @@
         }
 
         function parseCSV(csvString) {
-            // Very simple CSV parser: Assumes FirstName,LastName,Phone or Name,Phone
             const lines = csvString.split(/\r?\n/).filter(line => line.trim() !== '');
             if (lines.length === 0) return;
 
             let newContacts = [];
-            // Skip header if it looks like one
             let startIndex = 0;
             const firstLine = lines[0].toLowerCase();
             if (firstLine.includes('name') || firstLine.includes('phone') || firstLine.includes('first')) {
@@ -506,7 +521,6 @@
             }
 
             for (let i = startIndex; i < lines.length; i++) {
-                // simple split by comma, ignoring quotes for simplicity in this basic tool
                 const parts = lines[i].split(',');
                 if (parts.length >= 3) {
                     newContacts.push({
@@ -523,12 +537,7 @@
                 }
             }
 
-            if (newContacts.length > 0) {
-                contacts = [...contacts, ...newContacts];
-                saveToStorage();
-                renderTable();
-                alert(`Berhasil import ${newContacts.length} kontak dari CSV.`);
-            }
+            handleNewContacts(newContacts, 'CSV');
         }
 
         // Export manual logic removed because server handles /phonebook.xml
