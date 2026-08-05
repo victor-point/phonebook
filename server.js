@@ -89,6 +89,42 @@ app.get('/phonebook.xml', (req, res) => {
     res.send(xmlString);
 });
 
+// Endpoint khusus untuk XML Application (GS_XML_Application)
+app.get('/xmlapp', (req, res) => {
+    const contacts = readData();
+    
+    let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<GS_XML_Application>\n    <Display>\n        <Screen>\n';
+    
+    // Tampilkan maksimal 5 kontak di layar (keterbatasan resolusi)
+    for (let i = 0; i < Math.min(contacts.length, 5); i++) {
+        const c = contacts[i];
+        const name = (c.firstName + ' ' + c.lastName).trim();
+        xml += `            <DisplayString>\n                <X>0</X>\n                <Y>${i * 15}</Y>\n                <DisplayStr>${i+1}. ${escapeXML(name)}</DisplayStr>\n            </DisplayString>\n`;
+    }
+    
+    if (contacts.length === 0) {
+        xml += `            <DisplayString>\n                <X>0</X>\n                <Y>0</Y>\n                <DisplayStr>Kontak Kosong</DisplayStr>\n            </DisplayString>\n`;
+    }
+
+    xml += '        </Screen>\n    </Display>\n    <SoftKeys>\n';
+    
+    // Tambahkan softkey untuk menelepon (Maksimal 3 karena 1 dipakai untuk Exit)
+    let softkeyCount = 0;
+    for (let i = 0; i < Math.min(contacts.length, 3); i++) {
+        const c = contacts[i];
+        if (c.phone) {
+            xml += `        <SoftKey>\n            <Label>Call ${i+1}</Label>\n            <Action>\n                <Dial>\n                    <Account>0</Account>\n                    <Number>${escapeXML(c.phone)}</Number>\n                </Dial>\n            </Action>\n        </SoftKey>\n`;
+            softkeyCount++;
+        }
+    }
+    
+    xml += '        <SoftKey>\n            <Label>Exit</Label>\n            <Action>\n                <QuitApp/>\n            </Action>\n        </SoftKey>\n';
+    xml += '    </SoftKeys>\n</GS_XML_Application>';
+
+    res.header('Content-Type', 'text/xml');
+    res.send(xml);
+});
+
 app.listen(PORT, '::', () => {
     console.log(`========================================================`);
     console.log(`Server Phonebook berjalan di port ${PORT}`);
