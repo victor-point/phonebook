@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grandstream XML Phonebook Editor</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --text-color: #f8fafc;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --danger: #ef4444;
+            --danger-hover: #dc2626;
+            --surface: rgba(30, 41, 59, 0.7);
+            --border: rgba(255, 255, 255, 0.1);
+            --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+            background-image: radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.15) 0%, transparent 40%),
+                              radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.15) 0%, transparent 40%);
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1000px;
+            background: var(--surface);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            box-shadow: var(--glass-shadow);
+            padding: 2rem;
+            overflow: hidden;
+        }
+
+        h1 {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p.subtitle {
+            color: #94a3b8;
+            margin-bottom: 2rem;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        button, label.btn-upload {
+            background: var(--surface);
+            color: var(--text-color);
+            border: 1px solid var(--border);
+            padding: 0.75rem 1.25rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        button:hover, label.btn-upload:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        button.primary {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+
+        button.primary:hover {
+            background: var(--primary-hover);
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th, td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background: rgba(0, 0, 0, 0.2);
+            font-weight: 500;
+            color: #cbd5e1;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-icon {
+            padding: 0.5rem;
+            border-radius: 6px;
+            border: none;
+            background: transparent;
+            color: #94a3b8;
+        }
+
+        .btn-icon:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-color);
+        }
+
+        .btn-icon.delete:hover {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--danger);
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            z-index: 1000;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .modal {
+            background: #1e293b;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            width: 100%;
+            max-width: 400px;
+            transform: translateY(20px);
+            transition: transform 0.3s ease;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-overlay.active .modal {
+            transform: translateY(0);
+        }
+
+        .modal h2 {
+            margin-bottom: 1.5rem;
+            font-size: 1.25rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+            color: #cbd5e1;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-color);
+            font-size: 1rem;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: #94a3b8;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>XML Phonebook Editor</h1>
+        <p class="subtitle">Kelola kontak untuk Grandstream GRP2616 & UCM6308A (Tersimpan di Server PC)</p>
+
+        <div class="toolbar">
+            <label class="btn-upload">
+                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                Import CSV / XML
+                <input type="file" id="fileInput" accept=".xml,.csv">
+            </label>
+            <button onclick="openModal()">
+                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                Tambah Kontak
+            </button>
+            <a class="btn-upload primary" href="/phonebook.xml" target="_blank" style="margin-left: auto; text-decoration: none;">
+                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                Lihat phonebook.xml
+            </a>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>First Name</th>
+                        <th>Last Name</th>
+                        <th>Phone Number</th>
+                        <th width="100">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="contactTableBody">
+                    <!-- Contacts will be rendered here -->
+                </tbody>
+            </table>
+            <div id="emptyState" class="empty-state">
+                Belum ada kontak. Silakan import atau tambah baru.
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Add/Edit -->
+    <div class="modal-overlay" id="contactModal">
+        <div class="modal">
+            <h2 id="modalTitle">Tambah Kontak</h2>
+            <input type="hidden" id="editIndex" value="-1">
+            <div class="form-group">
+                <label for="firstName">First Name</label>
+                <input type="text" id="firstName" placeholder="John">
+            </div>
+            <div class="form-group">
+                <label for="lastName">Last Name</label>
+                <input type="text" id="lastName" placeholder="Doe">
+            </div>
+            <div class="form-group">
+                <label for="phoneNumber">Phone Number</label>
+                <input type="text" id="phoneNumber" placeholder="1001">
+            </div>
+            <div class="modal-actions">
+                <button onclick="closeModal()">Batal</button>
+                <button class="primary" onclick="saveContact()">Simpan</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let contacts = [];
+
+        // Load data from server on startup
+        window.onload = async () => {
+            try {
+                const res = await fetch('/api/contacts');
+                if (res.ok) {
+                    contacts = await res.json();
+                    renderTable();
+                }
+            } catch (err) {
+                console.error("Gagal memuat data dari server:", err);
+            }
+        };
+
+        async function saveToStorage() {
+            try {
+                await fetch('/api/contacts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(contacts)
+                });
+            } catch (err) {
+                console.error("Gagal menyimpan ke server:", err);
+                alert("Gagal menyimpan ke server!");
+            }
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('contactTableBody');
+            const emptyState = document.getElementById('emptyState');
+            tbody.innerHTML = '';
+
+            if (contacts.length === 0) {
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            emptyState.style.display = 'none';
+            contacts.forEach((contact, index) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${contact.firstName || ''}</td>
+                    <td>${contact.lastName || ''}</td>
+                    <td>${contact.phone || ''}</td>
+                    <td class="actions">
+                        <button class="btn-icon" onclick="editContact(${index})" title="Edit">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                        </button>
+                        <button class="btn-icon delete" onclick="deleteContact(${index})" title="Delete">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function openModal() {
+            document.getElementById('modalTitle').innerText = 'Tambah Kontak';
+            document.getElementById('editIndex').value = '-1';
+            document.getElementById('firstName').value = '';
+            document.getElementById('lastName').value = '';
+            document.getElementById('phoneNumber').value = '';
+            document.getElementById('contactModal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('contactModal').classList.remove('active');
+        }
+
+        function saveContact() {
+            const index = parseInt(document.getElementById('editIndex').value);
+            const contact = {
+                firstName: document.getElementById('firstName').value.trim(),
+                lastName: document.getElementById('lastName').value.trim(),
+                phone: document.getElementById('phoneNumber').value.trim()
+            };
+
+            if (!contact.firstName && !contact.lastName && !contact.phone) {
+                alert("Mohon isi minimal satu field.");
+                return;
+            }
+
+            if (index >= 0) {
+                contacts[index] = contact;
+            } else {
+                contacts.push(contact);
+            }
+
+            saveToStorage();
+            renderTable();
+            closeModal();
+        }
+
+        function editContact(index) {
+            const contact = contacts[index];
+            document.getElementById('modalTitle').innerText = 'Edit Kontak';
+            document.getElementById('editIndex').value = index;
+            document.getElementById('firstName').value = contact.firstName || '';
+            document.getElementById('lastName').value = contact.lastName || '';
+            document.getElementById('phoneNumber').value = contact.phone || '';
+            document.getElementById('contactModal').classList.add('active');
+        }
+
+        function deleteContact(index) {
+            if (confirm("Apakah Anda yakin ingin menghapus kontak ini?")) {
+                contacts.splice(index, 1);
+                saveToStorage();
+                renderTable();
+            }
+        }
+
+        // File Import Handling
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const content = e.target.result;
+                if (file.name.endsWith('.xml')) {
+                    parseXML(content);
+                } else if (file.name.endsWith('.csv')) {
+                    parseCSV(content);
+                } else {
+                    alert("Format file tidak didukung. Gunakan .xml atau .csv");
+                }
+                document.getElementById('fileInput').value = ''; // reset
+            };
+            reader.readAsText(file);
+        });
+
+        function parseXML(xmlString) {
+            try {
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlString, "text/xml");
+                
+                const contactNodes = xmlDoc.getElementsByTagName("Contact");
+                let newContacts = [];
+
+                for (let i = 0; i < contactNodes.length; i++) {
+                    const node = contactNodes[i];
+                    
+                    const getTagVal = (tagName) => {
+                        const el = node.getElementsByTagName(tagName)[0];
+                        return el ? el.textContent : '';
+                    };
+
+                    // Handle phone number nested in <Phone> or direct
+                    let phoneNum = '';
+                    const phoneNode = node.getElementsByTagName("Phone")[0];
+                    if (phoneNode) {
+                        const pn = phoneNode.getElementsByTagName("phonenumber")[0];
+                        if (pn) phoneNum = pn.textContent;
+                    } else {
+                        // Some older formats might have it direct
+                        phoneNum = getTagVal("PhoneNumber");
+                    }
+
+                    newContacts.push({
+                        firstName: getTagVal("FirstName"),
+                        lastName: getTagVal("LastName"),
+                        phone: phoneNum
+                    });
+                }
+
+                if (newContacts.length > 0) {
+                    contacts = [...contacts, ...newContacts];
+                    saveToStorage();
+                    renderTable();
+                    alert(`Berhasil import ${newContacts.length} kontak dari XML.`);
+                } else {
+                    alert("Tidak ada kontak yang ditemukan dalam file XML.");
+                }
+
+            } catch (err) {
+                console.error(err);
+                alert("Gagal memparsing file XML. Pastikan formatnya benar.");
+            }
+        }
+
+        function parseCSV(csvString) {
+            // Very simple CSV parser: Assumes FirstName,LastName,Phone or Name,Phone
+            const lines = csvString.split(/\r?\n/).filter(line => line.trim() !== '');
+            if (lines.length === 0) return;
+
+            let newContacts = [];
+            // Skip header if it looks like one
+            let startIndex = 0;
+            const firstLine = lines[0].toLowerCase();
+            if (firstLine.includes('name') || firstLine.includes('phone') || firstLine.includes('first')) {
+                startIndex = 1;
+            }
+
+            for (let i = startIndex; i < lines.length; i++) {
+                // simple split by comma, ignoring quotes for simplicity in this basic tool
+                const parts = lines[i].split(',');
+                if (parts.length >= 3) {
+                    newContacts.push({
+                        firstName: parts[0].trim(),
+                        lastName: parts[1].trim(),
+                        phone: parts[2].trim()
+                    });
+                } else if (parts.length === 2) {
+                    newContacts.push({
+                        firstName: parts[0].trim(),
+                        lastName: '',
+                        phone: parts[1].trim()
+                    });
+                }
+            }
+
+            if (newContacts.length > 0) {
+                contacts = [...contacts, ...newContacts];
+                saveToStorage();
+                renderTable();
+                alert(`Berhasil import ${newContacts.length} kontak dari CSV.`);
+            }
+        }
+
+        // Export manual logic removed because server handles /phonebook.xml
+
+
+        function escapeXML(unsafe) {
+            return unsafe.replace(/[<>&'"]/g, function (c) {
+                switch (c) {
+                    case '<': return '&lt;';
+                    case '>': return '&gt;';
+                    case '&': return '&amp;';
+                    case '\'': return '&apos;';
+                    case '"': return '&quot;';
+                }
+            });
+        }
+    </script>
+</body>
+</html>
