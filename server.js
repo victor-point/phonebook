@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 
 const app = express();
-const PORT = 2027; // Changed to port 2027 as requested
+const PORT = 3001; // Changed to port 3001
 const DATA_FILE = path.join(__dirname, 'contacts.json');
 
 app.use(cors());
@@ -89,10 +89,10 @@ app.get('/phonebook.xml', (req, res) => {
     res.send(xmlString);
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '::', () => {
     console.log(`========================================================`);
     console.log(`Server Phonebook berjalan di port ${PORT}`);
-    console.log(`- Buka UI di browser: http://localhost:${PORT}`);
-    console.log(`- URL untuk Grandstream: http://<IP_PC_ANDA>:${PORT}/phonebook.xml`);
+    console.log(`- Buka UI di browser: http://<IP_SERVER>:${PORT}`);
+    console.log(`- URL untuk Grandstream: http://<IP_SERVER>:${PORT}/phonebook.xml`);
     console.log(`========================================================`);
 });
