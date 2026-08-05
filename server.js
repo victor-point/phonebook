@@ -67,35 +67,42 @@ app.post('/api/contacts', (req, res) => {
 app.get('/phonebook.xml', (req, res) => {
     const contacts = readData();
     
-    let xmlString = '<?xml version="1.0" encoding="UTF-8"?>\n<AddressBook>\n';
-    
-    xmlString += '    <pbgroup>\n        <id>1</id>\n        <name>Blacklist</name>\n    </pbgroup>\n';
-    xmlString += '    <pbgroup>\n        <id>2</id>\n        <name>Whitelist</name>\n    </pbgroup>\n';
+    let xmlString = '<AddressBook>\n';
+    xmlString += '<pbgroup>\n<id>1</id>\n<name>Blacklist</name>\n</pbgroup>\n';
+    xmlString += '<pbgroup>\n<id>2</id>\n<name>Whitelist</name>\n</pbgroup>\n';
     
     contacts.forEach((contact, index) => {
-        xmlString += '    <Contact>\n';
-        xmlString += `        <id>${index + 1}</id>\n`;
+        xmlString += '<Contact>\n';
+        xmlString += `<id>${index + 1}</id>\n`;
         
-        // At least one of these should exist, but let's handle empty safely
-        xmlString += `        <FirstName>${escapeXML(contact.firstName || '')}</FirstName>\n`;
-        xmlString += `        <LastName>${escapeXML(contact.lastName || '')}</LastName>\n`;
-        
-        xmlString += '        <Frequent>0</Frequent>\n';
-        
-        if (contact.phone) {
-            xmlString += '        <Phone type="Work">\n';
-            xmlString += `            <phonenumber>${escapeXML(contact.phone)}</phonenumber>\n`;
-            xmlString += '            <accountindex>1</accountindex>\n';
-            xmlString += '        </Phone>\n';
+        if (contact.firstName) {
+            xmlString += `<FirstName>${escapeXML(contact.firstName)}</FirstName>\n`;
         } else {
-            xmlString += '        <Phone type="Work">\n';
-            xmlString += `            <phonenumber></phonenumber>\n`;
-            xmlString += '            <accountindex>1</accountindex>\n';
-            xmlString += '        </Phone>\n';
+            xmlString += '<FirstName/>\n';
         }
         
-        xmlString += '        <Primary>0</Primary>\n';
-        xmlString += '    </Contact>\n';
+        if (contact.lastName) {
+            xmlString += `<LastName>${escapeXML(contact.lastName)}</LastName>\n`;
+        } else {
+            xmlString += '<LastName/>\n';
+        }
+        
+        xmlString += '<Frequent>0</Frequent>\n';
+        xmlString += '<Phone type="Work">\n';
+        
+        // Gunakan phone jika ada, fallback ke firstName (biasanya nomor ekstensi)
+        const dialNumber = contact.phone || contact.firstName || '';
+        if (dialNumber) {
+            xmlString += `<phonenumber>${escapeXML(dialNumber)}</phonenumber>\n`;
+        } else {
+            xmlString += '<phonenumber/>\n';
+        }
+        
+        xmlString += '<accountindex>1</accountindex>\n';
+        xmlString += '</Phone>\n';
+        
+        xmlString += '<Primary>0</Primary>\n';
+        xmlString += '</Contact>\n';
     });
 
     xmlString += '</AddressBook>';
