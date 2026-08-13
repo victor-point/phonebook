@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
 const app = express();
 const PORT = 3001; // Changed to port 3001
@@ -170,10 +171,20 @@ app.get('/xmlapp', (req, res) => {
 });
 
 app.listen(PORT, '::', () => {
+    let localIP = 'localhost';
+    const interfaces = os.networkInterfaces();
+    for (const name of Object.keys(interfaces)) {
+        for (const iface of interfaces[name]) {
+            if (iface.family === 'IPv4' && !iface.internal) {
+                localIP = iface.address;
+            }
+        }
+    }
+    
     console.log(`========================================================`);
     console.log(`Server Phonebook berjalan di port ${PORT}`);
-    console.log(`- View UI   : http://10.1.2.231:${PORT}/`);
-    console.log(`- Admin UI  : http://10.1.2.231:${PORT}/admin`);
-    console.log(`- Grandstream XML: http://10.1.2.231:${PORT}/phonebook.xml`);
+    console.log(`- View UI   : http://${localIP}:${PORT}/`);
+    console.log(`- Admin UI  : http://${localIP}:${PORT}/admin`);
+    console.log(`- Grandstream XML: http://${localIP}:${PORT}/phonebook.xml`);
     console.log(`========================================================`);
 });
