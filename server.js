@@ -9,6 +9,16 @@ const DATA_FILE = path.join(__dirname, 'contacts.json');
 
 app.use(cors());
 app.use(express.json());
+
+// Set up custom routes BEFORE static middleware
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'view.html'));
+});
+
+app.get('/admin', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
 // Serve static files from current directory
 app.use(express.static(__dirname));
 
@@ -150,8 +160,8 @@ app.get('/xmlapp', (req, res) => {
 app.listen(PORT, '::', () => {
     console.log(`========================================================`);
     console.log(`Server Phonebook berjalan di port ${PORT}`);
-    console.log(`- Admin UI  : http://10.1.2.231:${PORT}/`);
-    console.log(`- View UI   : http://10.1.2.231:${PORT}/view.html`);
+    console.log(`- View UI   : http://10.1.2.231:${PORT}/`);
+    console.log(`- Admin UI  : http://10.1.2.231:${PORT}/admin`);
     console.log(`- Grandstream XML: http://10.1.2.231:${PORT}/phonebook.xml`);
     console.log(`========================================================`);
 });
