@@ -148,6 +148,7 @@
                 <th onclick="srt('ext')" id="th-ext">No. Ext <span class="si">↕</span></th>
                 <th onclick="srt('name')" id="th-name">Nama Ext <span class="si">↕</span></th>
                 <th onclick="srt('dept')" id="th-dept">Departemen <span class="si">↕</span></th>
+                <th>Lokasi</th>
             </tr></thead>
             <tbody id="listTb"></tbody>
         </table>
@@ -215,6 +216,14 @@ function filter(){
     render();
 }
 
+function getLokasi(ext) {
+    if (!ext) return '';
+    const e = String(ext).trim();
+    if (e.startsWith('87') && e.length === 5) return 'Gedung SS3';
+    if (e.startsWith('8') && !e.startsWith('87') && e.length >= 4) return 'Gedung Panin';
+    return 'Lainnya';
+}
+
 function srt(k){if(sKey===k)sDir*=-1;else{sKey=k;sDir=1;}doSort();render();}
 function doSort(){
     const m={ext:'firstName',name:'lastName',dept:'phone'};const f=m[sKey];
@@ -255,15 +264,22 @@ function renderGrid(){
     const s=(pgG-1)*PSG,slice=fil.slice(s,s+PSG);
     slice.forEach(c=>{
         const ini=initials(c.lastName||c.firstName||'');
+        const ext = c.firstName || '';
+        const loc = getLokasi(ext);
+        const locBadge = loc === 'Gedung SS3' ? 'background:rgba(234,179,8,0.15);color:#facc15;border:1px solid rgba(234,179,8,0.3);border-radius:20px;padding:0.15rem 0.65rem;font-size:0.75rem;font-weight:600' : 
+                         loc === 'Gedung Panin' ? 'background:rgba(16,185,129,0.15);color:#34d399;border:1px solid rgba(16,185,129,0.3);border-radius:20px;padding:0.15rem 0.65rem;font-size:0.75rem;font-weight:600' : '';
         const div=document.createElement('div');
         div.className='card';
         div.innerHTML=`
             <div class="card-top">
                 <div class="avatar">${ini.toUpperCase()}</div>
-                <div class="card-ext">${c.firstName||'—'}</div>
+                <div class="card-ext">${ext||'—'}</div>
             </div>
             <div class="card-name">${c.lastName||'<span style="color:var(--mut);font-style:italic">Tidak ada nama</span>'}</div>
-            ${c.phone?`<div style="margin-top:.5rem"><span class="card-dept"><svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>${c.phone}</span></div>`:'<div style="margin-top:.5rem"><span class="no-dept">— tidak ada departemen</span></div>'}`;
+            <div style="margin-top:.5rem;display:flex;gap:.4rem;flex-wrap:wrap">
+                ${c.phone?`<span class="card-dept"><svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>${c.phone}</span>`:'<span class="no-dept">— tidak ada departemen</span>'}
+                ${locBadge ? `<span style="${locBadge}">${loc}</span>` : ''}
+            </div>`;
         el.appendChild(div);
     });
     const pgEl=document.getElementById('pgGrid');
@@ -288,11 +304,18 @@ function renderList(){
     if(pgL>pages)pgL=pages;
     const s=(pgL-1)*PSL,slice=fil.slice(s,s+PSL);
     slice.forEach(c=>{
+        const ext = c.firstName || '';
+        const name = c.lastName || '';
+        const dept = c.phone || '';
+        const loc = getLokasi(ext);
+        const locBadge = loc === 'Gedung SS3' ? 'background:rgba(234,179,8,0.15);color:#facc15;border:1px solid rgba(234,179,8,0.3);border-radius:20px;padding:0.15rem 0.65rem;font-size:0.75rem;font-weight:600' : 
+                         loc === 'Gedung Panin' ? 'background:rgba(16,185,129,0.15);color:#34d399;border:1px solid rgba(16,185,129,0.3);border-radius:20px;padding:0.15rem 0.65rem;font-size:0.75rem;font-weight:600' : '';
         const tr=document.createElement('tr');
         tr.innerHTML=`
-            <td><span class="eb">${c.firstName||''}</span></td>
-            <td>${c.lastName||'<span style="color:var(--mut);font-style:italic">—</span>'}</td>
-            <td>${c.phone?`<span class="db">${c.phone}</span>`:'<span style="color:var(--mut);font-style:italic">—</span>'}</td>`;
+            <td><span class="eb">${ext}</span></td>
+            <td>${name||'<span style="color:var(--mut);font-style:italic">—</span>'}</td>
+            <td>${dept?`<span class="db">${dept}</span>`:'<span style="color:var(--mut);font-style:italic">—</span>'}</td>
+            <td>${locBadge ? `<span style="${locBadge}">${loc}</span>` : `<span style="color:var(--mut);font-size:0.8rem">${loc}</span>`}</td>`;
         tbody.appendChild(tr);
     });
     const pgEl=document.getElementById('pgList');

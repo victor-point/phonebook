@@ -156,6 +156,7 @@
                 <th onclick="srt('ext')" id="th-ext">No. Ext <span class="si">↕</span></th>
                 <th onclick="srt('name')" id="th-name">Nama Ext <span class="si">↕</span></th>
                 <th onclick="srt('dept')" id="th-dept">Departemen <span class="si">↕</span></th>
+                <th>Lokasi</th>
                 <th style="width:90px;cursor:default">Aksi</th>
             </tr></thead>
             <tbody id="tb"></tbody>
@@ -257,11 +258,19 @@ function render(){
     const s=(pg-1)*PS,slice=fil.slice(s,s+PS);
     slice.forEach(c=>{
         const ri=data.indexOf(c);
+        const ext = c.firstName || '';
+        const name = c.lastName || '';
+        const dept = c.phone || '';
+        const loc = getLokasi(ext);
+        const locBadge = loc === 'Gedung SS3' ? 'background:rgba(234,179,8,0.15);color:#facc15;border:1px solid rgba(234,179,8,0.3);border-radius:20px;padding:0.15rem 0.65rem;font-size:0.75rem;font-weight:600' : 
+                         loc === 'Gedung Panin' ? 'background:rgba(16,185,129,0.15);color:#34d399;border:1px solid rgba(16,185,129,0.3);border-radius:20px;padding:0.15rem 0.65rem;font-size:0.75rem;font-weight:600' : '';
+        
         const tr=document.createElement('tr');
         tr.innerHTML=`
-            <td><span class="eb">${c.firstName||''}</span></td>
-            <td>${c.lastName||'<span style="color:var(--mut);font-style:italic">—</span>'}</td>
-            <td>${c.phone?`<span class="db">${c.phone}</span>`:'<span style="color:var(--mut);font-style:italic">—</span>'}</td>
+            <td><span class="eb">${ext}</span></td>
+            <td>${name||'<span style="color:var(--mut);font-style:italic">—</span>'}</td>
+            <td>${dept?`<span class="db">${dept}</span>`:'<span style="color:var(--mut);font-style:italic">—</span>'}</td>
+            <td>${locBadge ? `<span style="${locBadge}">${loc}</span>` : `<span style="color:var(--mut);font-size:0.8rem">${loc}</span>`}</td>
             <td class="acts">
                 <button class="bico ed" onclick="openEdit(${ri})" title="Edit"><svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
                 <button class="bico dl" onclick="openDel(${ri})" title="Hapus"><svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
@@ -342,7 +351,6 @@ document.addEventListener('keydown',e=>{
 document.getElementById('si').addEventListener('input',filter);
 
 /* CSV PARSER - UCM6308A Export */
-// Header mapping: Extension=col0, First Name=col74, Phone Number=col78
 function parseCSVLine(line){
     const r=[];let cur='',inQ=false;
     for(let i=0;i<line.length;i++){
@@ -354,22 +362,35 @@ function parseCSVLine(line){
     r.push(cur);return r;
 }
 
-function parseCSV(csv){
-    const lines=csv.split(/\r?\n/).filter(l=>l.trim()!=='');
-    if(!lines.length)return;
-    let start=0;
-    // Detect header row by checking if col0 is "Extension" (text, not number)
-    const firstCols=parseCSVLine(lines[0]);
-    if(isNaN(firstCols[0].trim())||firstCols[0].trim().toLowerCase()==='extension') start=1;
-    const nc=[];
-    for(let i=start;i<lines.length;i++){
-        const cols=parseCSVLine(lines[i]);
-        const ext=(cols[0]||'').trim();
-        if(!ext||isNaN(ext))continue; // skip non-numeric extensions
-        const namaExt=(cols[74]||'').trim();  // First Name col in UCM
-        const deptRaw=(cols[78]||'').trim();  // Phone Number col in UCM (used as dept)
-        // Extract department from "DEPT-Name" pattern if Phone Number is empty
-        // Jangan masukkan nama yang kosong
+function parseCSV(csvString) {
+    const lines = csvString.split(/\r?\n/).filter(l => l.trim() !== '');
+    if (lines.length === 0) return;
+    let nc = [];
+    
+    const firstCols = parseCSVLine(lines[0]);
+    const headers = firstCols.map(h => h.trim().toLowerCase());
+    
+    let start = 0;
+    if (isNaN(firstCols[0].trim()) || headers[0] === 'extension') start = 1;
+    
+    let idxExt = headers.indexOf('extension');
+    let idxName = headers.indexOf('first name');
+    let idxPhone = headers.indexOf('phone number');
+    
+    if (idxExt === -1) idxExt = 0;
+    if (idxName === -1) idxName = 74;
+    if (idxPhone === -1) idxPhone = 78;
+
+    for (let i = start; i < lines.length; i++) {
+        const cols = parseCSVLine(lines[i]);
+        if (cols.length < 3) continue;
+        
+        const ext = (cols[idxExt] || '').trim().replace(/^"|"$/g,'');
+        if (!ext || isNaN(ext)) continue;
+
+        let namaExt = (cols[idxName] || '').trim().replace(/^"|"$/g,'');
+        let deptRaw = cols[idxPhone] !== undefined ? (cols[idxPhone] || '').trim().replace(/^"|"$/g,'') : '';
+
         if(!namaExt || namaExt.toLowerCase() === 'sip(webrtc)') continue;
         
         let dept=deptRaw;

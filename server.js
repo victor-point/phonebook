@@ -10,12 +10,24 @@ const DATA_FILE = path.join(__dirname, 'contacts.json');
 app.use(cors());
 app.use(express.json());
 
+// Basic Auth Middleware
+const requireAuth = (req, res, next) => {
+    const b64auth = (req.headers.authorization || '').split(' ')[1] || '';
+    const [login, password] = Buffer.from(b64auth, 'base64').toString().split(':');
+
+    if (login === 'admin' && password === 'ITP@55w0rd') {
+        return next();
+    }
+    res.set('WWW-Authenticate', 'Basic realm="Admin Area"');
+    res.status(401).send('Authentication required. Username: admin');
+};
+
 // Set up custom routes BEFORE static middleware
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'view.html'));
 });
 
-app.get('/admin', (req, res) => {
+app.get('/admin', requireAuth, (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
@@ -63,7 +75,7 @@ app.get('/api/contacts', (req, res) => {
 });
 
 // API to save contacts from the web UI
-app.post('/api/contacts', (req, res) => {
+app.post('/api/contacts', requireAuth, (req, res) => {
     const contacts = req.body;
     if (Array.isArray(contacts)) {
         writeData(contacts);
