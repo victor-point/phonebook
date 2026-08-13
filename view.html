@@ -1,0 +1,328 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phonebook – Directory Extension</title>
+    <meta name="description" content="Directory extension internal perusahaan">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root{--bg:#06101e;--surf:rgba(10,22,46,.9);--surf2:rgba(16,32,65,.65);--bdr:rgba(70,120,255,.13);--bdrb:rgba(70,120,255,.32);--txt:#d8e8ff;--mut:#6278a8;--pri:#3d7eff;--ok:#10b981;--glow:0 0 40px rgba(61,126,255,.12)}
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;background-image:radial-gradient(ellipse at 15% 10%,rgba(61,126,255,.18) 0%,transparent 45%),radial-gradient(ellipse at 85% 85%,rgba(100,60,200,.14) 0%,transparent 45%)}
+        /* NAV */
+        nav{display:flex;align-items:center;justify-content:space-between;padding:.85rem 1.75rem;background:rgba(6,16,30,.88);border-bottom:1px solid var(--bdr);backdrop-filter:blur(14px);position:sticky;top:0;z-index:50}
+        .brand{display:flex;align-items:center;gap:.7rem}
+        .brand-ico{width:34px;height:34px;background:linear-gradient(135deg,#3d7eff,#7c3aed);border-radius:8px;display:flex;align-items:center;justify-content:center}
+        .brand-ico svg{width:18px;height:18px}
+        .brand h1{font-size:1rem;font-weight:700;background:linear-gradient(135deg,#60a5fa,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+        .brand p{font-size:.68rem;color:var(--mut);margin-top:1px}
+        .badge-view{background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-size:.68rem;font-weight:700;padding:.22rem .55rem;border-radius:20px;letter-spacing:.05em}
+        .nav-a{display:inline-flex;align-items:center;gap:.35rem;color:var(--mut);text-decoration:none;font-size:.82rem;padding:.35rem .7rem;border-radius:6px;transition:all .2s}
+        .nav-a:hover{background:var(--surf2);color:var(--txt)}
+        /* HERO SEARCH */
+        .hero{text-align:center;padding:2.5rem 1rem 1.5rem}
+        .hero h2{font-size:1.7rem;font-weight:700;background:linear-gradient(135deg,#60a5fa,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:.4rem}
+        .hero p{color:var(--mut);font-size:.9rem;margin-bottom:1.5rem}
+        .search-box{position:relative;max-width:520px;margin:0 auto}
+        .search-box svg{position:absolute;left:1.1rem;top:50%;transform:translateY(-50%);color:var(--mut);pointer-events:none}
+        #si{width:100%;padding:.9rem 1rem .9rem 3rem;background:var(--surf2);border:1px solid var(--bdrb);border-radius:12px;color:var(--txt);font-size:1rem;font-family:'Inter',sans-serif;transition:border-color .2s,box-shadow .2s}
+        #si:focus{outline:none;border-color:var(--pri);box-shadow:0 0 0 4px rgba(61,126,255,.15)}
+        #si::placeholder{color:var(--mut)}
+        #siClear{position:absolute;right:1rem;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--mut);cursor:pointer;padding:.25rem;border-radius:4px;display:none;transition:color .2s}
+        #siClear:hover{color:var(--txt)}
+        /* STATS BAR */
+        .sbar{display:flex;justify-content:center;gap:2rem;padding:.9rem 1rem;color:var(--mut);font-size:.82rem}
+        .sbar span b{color:var(--txt)}
+        /* FILTER CHIPS */
+        .chips{display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap;padding:.5rem 1rem 1rem}
+        .chip{padding:.3rem .8rem;border-radius:20px;border:1px solid var(--bdr);background:var(--surf2);color:var(--mut);font-size:.78rem;cursor:pointer;transition:all .2s}
+        .chip:hover,.chip.act{background:var(--pri);border-color:var(--pri);color:#fff}
+        /* MAIN */
+        main{padding:0 1.75rem 2rem;max-width:1100px;margin:0 auto}
+        /* GRID */
+        .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:.85rem}
+        /* CARD */
+        .card{background:var(--surf);border:1px solid var(--bdr);border-radius:14px;padding:1.1rem 1.2rem;backdrop-filter:blur(10px);transition:transform .2s,box-shadow .2s,border-color .2s;cursor:default}
+        .card:hover{transform:translateY(-3px);box-shadow:var(--glow),0 4px 20px rgba(0,0,0,.3);border-color:var(--bdrb)}
+        .card-top{display:flex;align-items:center;gap:.75rem;margin-bottom:.65rem}
+        .avatar{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,rgba(61,126,255,.25),rgba(139,92,246,.25));border:1px solid rgba(61,126,255,.2);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.95rem;color:#60a5fa;flex-shrink:0}
+        .card-ext{font-family:'Courier New',monospace;font-size:1rem;font-weight:700;color:#60a5fa;letter-spacing:.02em}
+        .card-name{font-size:.88rem;font-weight:500;color:var(--txt);margin-bottom:.4rem;line-height:1.3}
+        .card-dept{display:inline-flex;align-items:center;gap:.3rem;background:rgba(139,92,246,.12);color:#a78bfa;border:1px solid rgba(139,92,246,.22);border-radius:20px;padding:.2rem .65rem;font-size:.76rem;font-weight:500}
+        .no-dept{color:var(--mut);font-size:.78rem;font-style:italic}
+        .empty{text-align:center;padding:4rem 1rem;color:var(--mut);grid-column:1/-1}
+        .empty svg{opacity:.22;margin-bottom:.9rem}
+        /* TABLE mode toggle */
+        .view-toggle{display:flex;justify-content:flex-end;padding:.5rem 0 .75rem;gap:.5rem}
+        .vtb{padding:.35rem .65rem;border-radius:6px;border:1px solid var(--bdr);background:transparent;color:var(--mut);cursor:pointer;transition:all .15s;font-size:.8rem;display:flex;align-items:center;gap:.3rem}
+        .vtb.act{background:var(--surf2);border-color:var(--bdrb);color:var(--txt)}
+        /* TABLE layout */
+        .tw{background:var(--surf);border:1px solid var(--bdr);border-radius:14px;overflow:hidden;backdrop-filter:blur(12px);display:none}
+        .tw.on{display:block}
+        .grid-wrap.off{display:none}
+        table{width:100%;border-collapse:collapse}
+        thead tr{background:rgba(0,0,0,.22)}
+        th{padding:.75rem 1rem;font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--mut);border-bottom:1px solid var(--bdr);cursor:pointer;user-select:none}
+        th:hover{color:var(--txt)}
+        th .si{opacity:.4;margin-left:4px}
+        th.sorted .si{opacity:1;color:var(--pri)}
+        td{padding:.75rem 1rem;border-bottom:1px solid var(--bdr);font-size:.86rem}
+        tr:last-child td{border-bottom:none}
+        tbody tr:hover td{background:rgba(61,126,255,.04)}
+        .eb{display:inline-block;background:rgba(61,126,255,.14);color:#60a5fa;border:1px solid rgba(61,126,255,.28);border-radius:6px;padding:.18rem .55rem;font-weight:600;font-size:.84rem;font-family:'Courier New',monospace}
+        .db{display:inline-block;background:rgba(139,92,246,.12);color:#a78bfa;border:1px solid rgba(139,92,246,.24);border-radius:20px;padding:.13rem .6rem;font-size:.76rem;font-weight:500}
+        /* PAGINATION */
+        .pg{display:flex;align-items:center;justify-content:space-between;padding:.8rem 1rem;border-top:1px solid var(--bdr);font-size:.8rem;color:var(--mut);margin-top:.5rem}
+        .pgb{display:flex;gap:.35rem}
+        .pb{padding:.3rem .65rem;border-radius:6px;border:1px solid var(--bdr);background:transparent;color:var(--mut);cursor:pointer;font-size:.8rem;transition:all .15s}
+        .pb:hover,.pb.a{background:var(--pri);border-color:var(--pri);color:#fff}
+        .pb:disabled{opacity:.3;cursor:not-allowed}
+    </style>
+</head>
+<body>
+<nav>
+    <div class="brand">
+        <div class="brand-ico">
+            <svg fill="none" stroke="white" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+        </div>
+        <div>
+            <h1>Directory Extension</h1>
+            <p>Internal Phonebook</p>
+        </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:.75rem">
+        <a class="nav-a" href="/">
+            <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+            Admin
+        </a>
+        <span class="badge-view">VIEW</span>
+    </div>
+</nav>
+
+<div class="hero">
+    <h2>Directory Extension</h2>
+    <p>Cari nomor extension berdasarkan nama atau departemen</p>
+    <div class="search-box">
+        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        <input type="text" id="si" placeholder="Cari no. ext, nama, departemen…" autocomplete="off">
+        <button id="siClear" onclick="clearSearch()" title="Hapus pencarian">✕</button>
+    </div>
+</div>
+
+<div class="sbar">
+    <span><b id="sTotal">0</b> total ext</span>
+    <span><b id="sFil">0</b> ditampilkan</span>
+    <span><b id="sDept">0</b> departemen</span>
+</div>
+
+<div class="chips" id="deptChips"></div>
+
+<main>
+    <div class="view-toggle">
+        <button class="vtb act" id="vtGrid" onclick="setView('grid')">
+            <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+            Grid
+        </button>
+        <button class="vtb" id="vtList" onclick="setView('list')">
+            <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+            List
+        </button>
+    </div>
+
+    <!-- Grid View -->
+    <div class="grid-wrap" id="gridWrap">
+        <div class="grid" id="gridEl"></div>
+        <div class="pg" id="pgGrid" style="display:none">
+            <span id="pgGInfo"></span>
+            <div class="pgb" id="pgGBtns"></div>
+        </div>
+    </div>
+
+    <!-- List View -->
+    <div class="tw" id="listWrap">
+        <table>
+            <thead><tr>
+                <th onclick="srt('ext')" id="th-ext">No. Ext <span class="si">↕</span></th>
+                <th onclick="srt('name')" id="th-name">Nama Ext <span class="si">↕</span></th>
+                <th onclick="srt('dept')" id="th-dept">Departemen <span class="si">↕</span></th>
+            </tr></thead>
+            <tbody id="listTb"></tbody>
+        </table>
+        <div class="pg" id="pgList" style="display:none">
+            <span id="pgLInfo"></span>
+            <div class="pgb" id="pgLBtns"></div>
+        </div>
+    </div>
+</main>
+
+<script>
+const API='/api/contacts';
+let data=[],fil=[],sKey='ext',sDir=1,pgG=1,pgL=1,activeDept='';
+const PSG=24,PSL=30;
+let viewMode='grid';
+
+window.onload=async()=>{
+    try{const r=await fetch(API);if(r.ok)data=await r.json();}catch(e){}
+    buildDeptChips();filter();
+};
+
+function buildDeptChips(){
+    const depts=[...new Set(data.map(c=>c.phone).filter(Boolean))].sort();
+    const el=document.getElementById('deptChips');
+    el.innerHTML='<button class="chip act" onclick="filterDept(\'\')">Semua</button>';
+    depts.forEach(d=>{
+        const b=document.createElement('button');
+        b.className='chip';b.textContent=d;
+        b.onclick=()=>filterDept(d);
+        el.appendChild(b);
+    });
+}
+
+function filterDept(dept){
+    activeDept=dept;
+    document.querySelectorAll('.chip').forEach(c=>{
+        c.classList.toggle('act', c.textContent===(dept||'Semua'));
+    });
+    filter();
+}
+
+function clearSearch(){
+    document.getElementById('si').value='';
+    document.getElementById('siClear').style.display='none';
+    filter();
+}
+
+function filter(){
+    const q=(document.getElementById('si').value||'').toLowerCase();
+    const clr=document.getElementById('siClear');
+    clr.style.display=q?'block':'none';
+    fil=data.filter(c=>{
+        const ext=(c.firstName||'').toLowerCase();
+        const name=(c.lastName||'').toLowerCase();
+        const dept=(c.phone||'').toLowerCase();
+        const qMatch=!q||ext.includes(q)||name.includes(q)||dept.includes(q);
+        const dMatch=!activeDept||(c.phone||'')=== activeDept;
+        return qMatch&&dMatch;
+    });
+    doSort();pgG=1;pgL=1;
+    document.getElementById('sTotal').textContent=data.length;
+    document.getElementById('sFil').textContent=fil.length;
+    document.getElementById('sDept').textContent=new Set(data.map(c=>c.phone).filter(Boolean)).size;
+    render();
+}
+
+function srt(k){if(sKey===k)sDir*=-1;else{sKey=k;sDir=1;}doSort();render();}
+function doSort(){
+    const m={ext:'firstName',name:'lastName',dept:'phone'};const f=m[sKey];
+    fil.sort((a,b)=>{
+        const va=(a[f]||'').toLowerCase(),vb=(b[f]||'').toLowerCase();
+        return va<vb?-sDir:va>vb?sDir:0;
+    });
+}
+
+function setView(v){
+    viewMode=v;
+    document.getElementById('vtGrid').classList.toggle('act',v==='grid');
+    document.getElementById('vtList').classList.toggle('act',v==='list');
+    document.getElementById('gridWrap').classList.toggle('off',v==='list');
+    document.getElementById('listWrap').classList.toggle('on',v==='list');
+    render();
+}
+
+function initials(name){
+    if(!name)return'?';
+    const p=name.replace(/[^a-zA-Z\s]/g,'').trim().split(/\s+/);
+    return(p[0]?p[0][0]:'')+(p[1]?p[1][0]:'');
+}
+
+function render(){
+    if(viewMode==='grid')renderGrid();else renderList();
+}
+
+function renderGrid(){
+    const el=document.getElementById('gridEl');
+    el.innerHTML='';
+    if(fil.length===0){
+        el.innerHTML='<div class="empty"><svg width="44" height="44" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><p>Tidak ada extension yang cocok.</p></div>';
+        document.getElementById('pgGrid').style.display='none';return;
+    }
+    const tot=fil.length,pages=Math.ceil(tot/PSG);
+    if(pgG>pages)pgG=pages;
+    const s=(pgG-1)*PSG,slice=fil.slice(s,s+PSG);
+    slice.forEach(c=>{
+        const ini=initials(c.lastName||c.firstName||'');
+        const div=document.createElement('div');
+        div.className='card';
+        div.innerHTML=`
+            <div class="card-top">
+                <div class="avatar">${ini.toUpperCase()}</div>
+                <div class="card-ext">${c.firstName||'—'}</div>
+            </div>
+            <div class="card-name">${c.lastName||'<span style="color:var(--mut);font-style:italic">Tidak ada nama</span>'}</div>
+            ${c.phone?`<div style="margin-top:.5rem"><span class="card-dept"><svg width="11" height="11" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>${c.phone}</span></div>`:'<div style="margin-top:.5rem"><span class="no-dept">— tidak ada departemen</span></div>'}`;
+        el.appendChild(div);
+    });
+    const pgEl=document.getElementById('pgGrid');
+    if(tot<=PSG){pgEl.style.display='none';return;}
+    pgEl.style.display='flex';
+    document.getElementById('pgGInfo').textContent=`${s+1}–${Math.min(s+PSG,tot)} dari ${tot}`;
+    buildPg('pgGBtns',pgG,pages,p=>{pgG=p;renderGrid();});
+}
+
+function renderList(){
+    const tbody=document.getElementById('listTb');tbody.innerHTML='';
+    ['ext','name','dept'].forEach(k=>{
+        const el=document.getElementById('th-'+k);
+        el.classList.toggle('sorted',k===sKey);
+        el.querySelector('.si').textContent=k===sKey?(sDir===1?'↑':'↓'):'↕';
+    });
+    if(fil.length===0){
+        tbody.innerHTML='<tr><td colspan="3" style="text-align:center;padding:2.5rem;color:var(--mut)">Tidak ada data</td></tr>';
+        document.getElementById('pgList').style.display='none';return;
+    }
+    const tot=fil.length,pages=Math.ceil(tot/PSL);
+    if(pgL>pages)pgL=pages;
+    const s=(pgL-1)*PSL,slice=fil.slice(s,s+PSL);
+    slice.forEach(c=>{
+        const tr=document.createElement('tr');
+        tr.innerHTML=`
+            <td><span class="eb">${c.firstName||''}</span></td>
+            <td>${c.lastName||'<span style="color:var(--mut);font-style:italic">—</span>'}</td>
+            <td>${c.phone?`<span class="db">${c.phone}</span>`:'<span style="color:var(--mut);font-style:italic">—</span>'}</td>`;
+        tbody.appendChild(tr);
+    });
+    const pgEl=document.getElementById('pgList');
+    if(tot<=PSL){pgEl.style.display='none';return;}
+    pgEl.style.display='flex';
+    document.getElementById('pgLInfo').textContent=`${s+1}–${Math.min(s+PSL,tot)} dari ${tot}`;
+    buildPg('pgLBtns',pgL,pages,p=>{pgL=p;renderList();});
+}
+
+function buildPg(cid,cur,pages,cb){
+    const c=document.getElementById(cid);c.innerHTML='';
+    const ab=(lbl,p,dis=false,act=false)=>{
+        const b=document.createElement('button');b.className='pb'+(act?' a':'');b.textContent=lbl;b.disabled=dis;
+        b.onclick=()=>cb(p);c.appendChild(b);
+    };
+    ab('‹',cur-1,cur===1);
+    const sp=Math.max(1,cur-2),ep=Math.min(pages,cur+2);
+    if(sp>1)ab('1',1);
+    if(sp>2){const s=document.createElement('span');s.textContent='…';s.style='padding:0 4px;color:var(--mut)';c.appendChild(s);}
+    for(let i=sp;i<=ep;i++)ab(i,i,false,i===cur);
+    if(ep<pages-1){const s=document.createElement('span');s.textContent='…';s.style='padding:0 4px;color:var(--mut)';c.appendChild(s);}
+    if(ep<pages)ab(pages,pages);
+    ab('›',cur+1,cur===pages);
+}
+
+document.getElementById('si').addEventListener('input',filter);
+document.addEventListener('keydown',e=>{
+    if(e.key==='/'&&document.activeElement!==document.getElementById('si')){
+        e.preventDefault();document.getElementById('si').focus();
+    }
+});
+</script>
+</body>
+</html>

@@ -90,8 +90,8 @@ app.get('/phonebook.xml', (req, res) => {
         xmlString += '<Frequent>0</Frequent>\n';
         xmlString += '<Phone type="Work">\n';
         
-        // Gunakan phone jika ada, fallback ke firstName (biasanya nomor ekstensi)
-        const dialNumber = contact.phone || contact.firstName || '';
+        // firstName = No. Ext (nomor ekstensi), digunakan sebagai nomor dial
+        const dialNumber = contact.firstName || '';
         if (dialNumber) {
             xmlString += `<phonenumber>${escapeXML(dialNumber)}</phonenumber>\n`;
         } else {
@@ -150,7 +150,8 @@ app.get('/xmlapp', (req, res) => {
 app.listen(PORT, '::', () => {
     console.log(`========================================================`);
     console.log(`Server Phonebook berjalan di port ${PORT}`);
-    console.log(`- Buka UI di browser: http://<IP_SERVER>:${PORT}`);
-    console.log(`- URL untuk Grandstream: http://<IP_SERVER>:${PORT}/phonebook.xml`);
+    console.log(`- Admin UI  : http://10.1.2.231:${PORT}/`);
+    console.log(`- View UI   : http://10.1.2.231:${PORT}/view.html`);
+    console.log(`- Grandstream XML: http://10.1.2.231:${PORT}/phonebook.xml`);
     console.log(`========================================================`);
 });

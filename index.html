@@ -1,559 +1,424 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Grandstream XML Phonebook Editor</title>
+    <title>Admin – Phonebook Editor</title>
+    <meta name="description" content="Halaman admin phonebook Grandstream UCM6308A">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --bg-color: #0f172a;
-            --text-color: #f8fafc;
-            --primary: #3b82f6;
-            --primary-hover: #2563eb;
-            --danger: #ef4444;
-            --danger-hover: #dc2626;
-            --surface: rgba(30, 41, 59, 0.7);
-            --border: rgba(255, 255, 255, 0.1);
-            --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Inter', sans-serif;
-        }
-
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 2rem;
-            background-image: radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.15) 0%, transparent 40%),
-                              radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.15) 0%, transparent 40%);
-        }
-
-        .container {
-            width: 100%;
-            max-width: 1000px;
-            background: var(--surface);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border-radius: 16px;
-            border: 1px solid var(--border);
-            box-shadow: var(--glass-shadow);
-            padding: 2rem;
-            overflow: hidden;
-        }
-
-        h1 {
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-            background: linear-gradient(135deg, #60a5fa, #a78bfa);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        p.subtitle {
-            color: #94a3b8;
-            margin-bottom: 2rem;
-        }
-
-        .toolbar {
-            display: flex;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-            flex-wrap: wrap;
-        }
-
-        button, label.btn-upload {
-            background: var(--surface);
-            color: var(--text-color);
-            border: 1px solid var(--border);
-            padding: 0.75rem 1.25rem;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 500;
-            transition: all 0.2s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 0.9rem;
-        }
-
-        button:hover, label.btn-upload:hover {
-            background: rgba(255, 255, 255, 0.1);
-            transform: translateY(-2px);
-        }
-
-        button.primary {
-            background: var(--primary);
-            border-color: var(--primary);
-        }
-
-        button.primary:hover {
-            background: var(--primary-hover);
-        }
-
-        input[type="file"] {
-            display: none;
-        }
-
-        .table-container {
-            overflow-x: auto;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            text-align: left;
-        }
-
-        th, td {
-            padding: 1rem;
-            border-bottom: 1px solid var(--border);
-        }
-
-        th {
-            background: rgba(0, 0, 0, 0.2);
-            font-weight: 500;
-            color: #cbd5e1;
-        }
-
-        tr:last-child td {
-            border-bottom: none;
-        }
-
-        tr:hover td {
-            background: rgba(255, 255, 255, 0.03);
-        }
-
-        .actions {
-            display: flex;
-            gap: 0.5rem;
-        }
-
-        .btn-icon {
-            padding: 0.5rem;
-            border-radius: 6px;
-            border: none;
-            background: transparent;
-            color: #94a3b8;
-        }
-
-        .btn-icon:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: var(--text-color);
-        }
-
-        .btn-icon.delete:hover {
-            background: rgba(239, 68, 68, 0.2);
-            color: var(--danger);
-        }
-
-        /* Modal Styles */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(4px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s ease;
-            z-index: 1000;
-        }
-
-        .modal-overlay.active {
-            opacity: 1;
-            pointer-events: all;
-        }
-
-        .modal {
-            background: #1e293b;
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 2rem;
-            width: 100%;
-            max-width: 400px;
-            transform: translateY(20px);
-            transition: transform 0.3s ease;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
-        }
-
-        .modal-overlay.active .modal {
-            transform: translateY(0);
-        }
-
-        .modal h2 {
-            margin-bottom: 1.5rem;
-            font-size: 1.25rem;
-        }
-
-        .form-group {
-            margin-bottom: 1rem;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-size: 0.875rem;
-            color: #cbd5e1;
-        }
-
-        .form-group input {
-            width: 100%;
-            padding: 0.75rem;
-            background: rgba(0, 0, 0, 0.2);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            color: var(--text-color);
-            font-size: 1rem;
-        }
-
-        .form-group input:focus {
-            outline: none;
-            border-color: var(--primary);
-        }
-
-        .modal-actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: 1rem;
-            margin-top: 2rem;
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 3rem 1rem;
-            color: #94a3b8;
-        }
+        :root{--bg:#07111f;--surf:rgba(13,26,52,.88);--surf2:rgba(20,38,72,.6);--bdr:rgba(80,130,255,.14);--bdrb:rgba(80,130,255,.35);--txt:#dde8ff;--mut:#6d85b8;--pri:#3d7eff;--prih:#2563eb;--dan:#f43f5e;--danh:#e11d48;--ok:#10b981;--glow:0 0 40px rgba(61,126,255,.15)}
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;background-image:radial-gradient(ellipse at 12% 8%,rgba(61,126,255,.2) 0%,transparent 45%),radial-gradient(ellipse at 88% 88%,rgba(139,92,246,.15) 0%,transparent 45%)}
+        /* NAV */
+        nav{display:flex;align-items:center;justify-content:space-between;padding:.85rem 1.75rem;background:rgba(7,17,31,.85);border-bottom:1px solid var(--bdr);backdrop-filter:blur(14px);position:sticky;top:0;z-index:100}
+        .brand{display:flex;align-items:center;gap:.7rem}
+        .brand-ico{width:34px;height:34px;background:linear-gradient(135deg,#3d7eff,#7c3aed);border-radius:8px;display:flex;align-items:center;justify-content:center}
+        .brand-ico svg{width:18px;height:18px}
+        .brand h1{font-size:1rem;font-weight:700;background:linear-gradient(135deg,#60a5fa,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+        .brand p{font-size:.68rem;color:var(--mut);margin-top:1px}
+        .nav-r{display:flex;align-items:center;gap:.75rem}
+        .badge{background:linear-gradient(135deg,#f43f5e,#e11d48);color:#fff;font-size:.68rem;font-weight:700;padding:.22rem .55rem;border-radius:20px;letter-spacing:.05em}
+        .nav-a{display:inline-flex;align-items:center;gap:.35rem;color:var(--mut);text-decoration:none;font-size:.82rem;padding:.35rem .7rem;border-radius:6px;transition:all .2s}
+        .nav-a:hover{background:var(--surf2);color:var(--txt)}
+        /* MAIN */
+        main{padding:1.75rem;max-width:1180px;margin:0 auto}
+        /* STATS */
+        .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.9rem;margin-bottom:1.4rem}
+        .sc{background:var(--surf);border:1px solid var(--bdr);border-radius:12px;padding:.9rem 1.1rem;backdrop-filter:blur(10px);transition:transform .2s,box-shadow .2s}
+        .sc:hover{transform:translateY(-2px);box-shadow:var(--glow)}
+        .sc-lbl{font-size:.68rem;color:var(--mut);text-transform:uppercase;letter-spacing:.07em}
+        .sc-val{font-size:1.7rem;font-weight:700;margin-top:.2rem}
+        .sc-val.b{color:#60a5fa}.sc-val.g{color:#34d399}.sc-val.v{color:#a78bfa}
+        /* TOOLBAR */
+        .tb{display:flex;gap:.65rem;margin-bottom:1.1rem;flex-wrap:wrap;align-items:center}
+        .sw{position:relative;flex:1;min-width:200px}
+        .sw svg{position:absolute;left:.7rem;top:50%;transform:translateY(-50%);color:var(--mut);pointer-events:none}
+        #si{width:100%;padding:.65rem .7rem .65rem 2.3rem;background:var(--surf2);border:1px solid var(--bdr);border-radius:8px;color:var(--txt);font-size:.875rem;font-family:'Inter',sans-serif;transition:border-color .2s,box-shadow .2s}
+        #si:focus{outline:none;border-color:var(--pri);box-shadow:0 0 0 3px rgba(61,126,255,.15)}
+        #si::placeholder{color:var(--mut)}
+        .btn{display:inline-flex;align-items:center;gap:.4rem;padding:.65rem 1rem;border-radius:8px;border:1px solid var(--bdr);background:var(--surf2);color:var(--txt);font-family:'Inter',sans-serif;font-size:.82rem;font-weight:500;cursor:pointer;transition:all .2s;white-space:nowrap;text-decoration:none}
+        .btn:hover{background:rgba(255,255,255,.08);transform:translateY(-1px);border-color:var(--bdrb)}
+        .btn.pr{background:var(--pri);border-color:var(--pri)}.btn.pr:hover{background:var(--prih)}
+        .btn.dn{background:var(--dan);border-color:var(--dan);color:#fff}.btn.dn:hover{background:var(--danh)}
+        input[type=file]{display:none}
+        /* TABLE */
+        .tw{background:var(--surf);border:1px solid var(--bdr);border-radius:14px;overflow:hidden;backdrop-filter:blur(12px);box-shadow:0 8px 32px rgba(0,0,0,.3)}
+        table{width:100%;border-collapse:collapse}
+        thead tr{background:rgba(0,0,0,.25)}
+        th{padding:.8rem 1rem;font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--mut);border-bottom:1px solid var(--bdr);cursor:pointer;user-select:none;white-space:nowrap}
+        th:hover{color:var(--txt)}
+        th .si{opacity:.4;margin-left:4px}
+        th.sorted .si{opacity:1;color:var(--pri)}
+        td{padding:.8rem 1rem;border-bottom:1px solid var(--bdr);font-size:.86rem}
+        tr:last-child td{border-bottom:none}
+        tbody tr{transition:background .15s}
+        tbody tr:hover td{background:rgba(61,126,255,.05)}
+        .eb{display:inline-block;background:rgba(61,126,255,.14);color:#60a5fa;border:1px solid rgba(61,126,255,.28);border-radius:6px;padding:.18rem .55rem;font-weight:600;font-size:.84rem;font-family:'Courier New',monospace}
+        .db{display:inline-block;background:rgba(139,92,246,.12);color:#a78bfa;border:1px solid rgba(139,92,246,.24);border-radius:20px;padding:.13rem .6rem;font-size:.76rem;font-weight:500}
+        .acts{display:flex;gap:.35rem}
+        .bico{padding:.42rem;border-radius:6px;border:none;background:transparent;color:var(--mut);cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center}
+        .bico:hover{background:rgba(255,255,255,.1);color:var(--txt)}
+        .bico.ed:hover{background:rgba(61,126,255,.2);color:var(--pri)}
+        .bico.dl:hover{background:rgba(244,63,94,.2);color:var(--dan)}
+        .empty{text-align:center;padding:3.5rem 1rem;color:var(--mut)}
+        .empty svg{opacity:.25;margin-bottom:.9rem}
+        /* PAGINATION */
+        .pg{display:flex;align-items:center;justify-content:space-between;padding:.8rem 1rem;border-top:1px solid var(--bdr);font-size:.8rem;color:var(--mut)}
+        .pgb{display:flex;gap:.35rem}
+        .pb{padding:.3rem .65rem;border-radius:6px;border:1px solid var(--bdr);background:transparent;color:var(--mut);cursor:pointer;font-size:.8rem;transition:all .15s}
+        .pb:hover,.pb.a{background:var(--pri);border-color:var(--pri);color:#fff}
+        .pb:disabled{opacity:.3;cursor:not-allowed}
+        /* OVERLAY */
+        .ov{position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .25s;z-index:1000}
+        .ov.on{opacity:1;pointer-events:all}
+        .modal{background:#0c1a38;border:1px solid var(--bdrb);border-radius:16px;padding:1.75rem;width:100%;max-width:430px;transform:translateY(22px) scale(.97);transition:transform .25s;box-shadow:0 24px 48px rgba(0,0,0,.6)}
+        .ov.on .modal{transform:translateY(0) scale(1)}
+        .mh{display:flex;align-items:center;gap:.7rem;margin-bottom:1.5rem}
+        .mico{width:38px;height:38px;background:rgba(61,126,255,.12);border:1px solid var(--bdrb);border-radius:9px;display:flex;align-items:center;justify-content:center}
+        .modal h2{font-size:1.1rem;font-weight:600}
+        .fg{margin-bottom:1rem}
+        .fg label{display:block;font-size:.76rem;color:var(--mut);margin-bottom:.4rem;font-weight:500;text-transform:uppercase;letter-spacing:.05em}
+        .fg input{width:100%;padding:.7rem .85rem;background:rgba(0,0,0,.3);border:1px solid var(--bdr);border-radius:8px;color:var(--txt);font-size:.92rem;font-family:'Inter',sans-serif;transition:border-color .2s,box-shadow .2s}
+        .fg input:focus{outline:none;border-color:var(--pri);box-shadow:0 0 0 3px rgba(61,126,255,.14)}
+        .ma{display:flex;justify-content:flex-end;gap:.65rem;margin-top:1.5rem}
+        /* CONFIRM */
+        .cmod{max-width:370px;text-align:center}
+        .dico{width:52px;height:52px;background:rgba(244,63,94,.15);border:1px solid rgba(244,63,94,.3);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1.1rem}
+        .cmod h2{font-size:1.05rem;margin-bottom:.45rem}
+        .cmod p{color:var(--mut);font-size:.855rem;margin-bottom:1.4rem}
+        /* TOAST */
+        #toast{position:fixed;bottom:1.4rem;right:1.4rem;background:#12203e;border:1px solid var(--bdrb);border-radius:10px;padding:.8rem 1.1rem;display:flex;align-items:center;gap:.7rem;font-size:.855rem;box-shadow:0 8px 24px rgba(0,0,0,.5);transform:translateY(80px);opacity:0;transition:all .35s cubic-bezier(.34,1.56,.64,1);z-index:2000;max-width:330px}
+        #toast.show{transform:translateY(0);opacity:1}
+        #toast.ok .td{background:var(--ok)}
+        #toast.err .td{background:var(--dan)}
+        #toast.inf .td{background:var(--pri)}
+        .td{width:8px;height:8px;border-radius:50%;flex-shrink:0}
     </style>
 </head>
 <body>
-
-    <div class="container">
-        <h1>XML Phonebook Editor</h1>
-        <p class="subtitle">Kelola kontak untuk Grandstream GRP2616 & UCM6308A (Tersimpan di Server PC)</p>
-
-        <div class="toolbar">
-            <label class="btn-upload">
-                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                Upload XML
-                <input type="file" id="xmlInput" accept=".xml">
-            </label>
-            <label class="btn-upload">
-                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                Import CSV
-                <input type="file" id="csvInput" accept=".csv">
-            </label>
-            <button onclick="openModal()">
-                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                Tambah Kontak
-            </button>
-            <a class="btn-upload primary" href="/phonebook.xml" download="phonebook.xml" style="margin-left: auto; text-decoration: none;">
-                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                Export XML (Manual)
-            </a>
+<nav>
+    <div class="brand">
+        <div class="brand-ico">
+            <svg fill="none" stroke="white" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
         </div>
-
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>First Name</th>
-                        <th>Last Name</th>
-                        <th>Phone Number</th>
-                        <th width="100">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody id="contactTableBody">
-                    <!-- Contacts will be rendered here -->
-                </tbody>
-            </table>
-            <div id="emptyState" class="empty-state">
-                Belum ada kontak. Silakan import atau tambah baru.
-            </div>
+        <div>
+            <h1>Phonebook Editor</h1>
+            <p>Grandstream UCM6308A &amp; GRP2616</p>
         </div>
     </div>
+    <div class="nav-r">
+        <a class="nav-a" href="/view.html">
+            <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+            Halaman View
+        </a>
+        <span class="badge">ADMIN</span>
+    </div>
+</nav>
 
-    <!-- Modal for Add/Edit -->
-    <div class="modal-overlay" id="contactModal">
-        <div class="modal">
-            <h2 id="modalTitle">Tambah Kontak</h2>
-            <input type="hidden" id="editIndex" value="-1">
-            <div class="form-group">
-                <label for="firstName">First Name</label>
-                <input type="text" id="firstName" placeholder="John">
-            </div>
-            <div class="form-group">
-                <label for="lastName">Last Name</label>
-                <input type="text" id="lastName" placeholder="Doe">
-            </div>
-            <div class="form-group">
-                <label for="phoneNumber">Phone Number</label>
-                <input type="text" id="phoneNumber" placeholder="1001">
-            </div>
-            <div class="modal-actions">
-                <button onclick="closeModal()">Batal</button>
-                <button class="primary" onclick="saveContact()">Simpan</button>
-            </div>
-        </div>
+<main>
+    <div class="stats">
+        <div class="sc"><div class="sc-lbl">Total Ext</div><div class="sc-val b" id="sTotal">0</div></div>
+        <div class="sc"><div class="sc-lbl">Bernama</div><div class="sc-val g" id="sNamed">0</div></div>
+        <div class="sc"><div class="sc-lbl">Departemen</div><div class="sc-val v" id="sDept">0</div></div>
     </div>
 
-    <script>
-        let contacts = [];
+    <div class="tb">
+        <div class="sw">
+            <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            <input type="text" id="si" placeholder="Cari no. ext, nama, atau departemen…">
+        </div>
+        <label class="btn">
+            <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+            Upload XML
+            <input type="file" id="xmlIn" accept=".xml">
+        </label>
+        <label class="btn">
+            <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            Import CSV UCM
+            <input type="file" id="csvIn" accept=".csv">
+        </label>
+        <button class="btn pr" onclick="openAdd()">
+            <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Tambah Ext
+        </button>
+        <a class="btn" href="/phonebook.xml" download="phonebook.xml">
+            <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            Export XML
+        </a>
+    </div>
 
-        // Load data from server on startup
-        window.onload = async () => {
-            try {
-                const res = await fetch('/api/contacts');
-                if (res.ok) {
-                    contacts = await res.json();
-                    renderTable();
-                }
-            } catch (err) {
-                console.error("Gagal memuat data dari server:", err);
-            }
-        };
+    <div class="tw">
+        <table>
+            <thead><tr>
+                <th onclick="srt('ext')" id="th-ext">No. Ext <span class="si">↕</span></th>
+                <th onclick="srt('name')" id="th-name">Nama Ext <span class="si">↕</span></th>
+                <th onclick="srt('dept')" id="th-dept">Departemen <span class="si">↕</span></th>
+                <th style="width:90px;cursor:default">Aksi</th>
+            </tr></thead>
+            <tbody id="tb"></tbody>
+        </table>
+        <div id="emp" class="empty" style="display:none">
+            <svg width="44" height="44" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            <p>Tidak ada data yang ditemukan.</p>
+        </div>
+        <div class="pg" id="pgBar" style="display:none">
+            <span id="pgInfo"></span>
+            <div class="pgb" id="pgBtns"></div>
+        </div>
+    </div>
+</main>
 
-        async function saveToStorage() {
-            try {
-                await fetch('/api/contacts', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(contacts)
-                });
-            } catch (err) {
-                console.error("Gagal menyimpan ke server:", err);
-                alert("Gagal menyimpan ke server!");
-            }
+<!-- Edit Modal -->
+<div class="ov" id="editOv">
+    <div class="modal">
+        <div class="mh">
+            <div class="mico"><svg width="18" height="18" fill="none" stroke="#60a5fa" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg></div>
+            <h2 id="editT">Tambah Extension</h2>
+        </div>
+        <input type="hidden" id="eIdx" value="-1">
+        <div class="fg"><label>No. Ext</label><input type="text" id="fExt" placeholder="misal: 8585"></div>
+        <div class="fg"><label>Nama Ext</label><input type="text" id="fName" placeholder="misal: IT-Ricky O."></div>
+        <div class="fg"><label>Departemen</label><input type="text" id="fDept" placeholder="misal: IT"></div>
+        <div class="ma">
+            <button class="btn" onclick="closeEdit()">Batal</button>
+            <button class="btn pr" onclick="saveC()">Simpan</button>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirm Modal -->
+<div class="ov" id="delOv">
+    <div class="modal cmod">
+        <div class="dico"><svg width="22" height="22" fill="none" stroke="#f43f5e" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></div>
+        <h2>Hapus Extension?</h2>
+        <p id="delInfo">Data akan dihapus permanen.</p>
+        <div class="ma" style="justify-content:center">
+            <button class="btn" onclick="closeDel()">Batal</button>
+            <button class="btn dn" onclick="doDel()">Ya, Hapus</button>
+        </div>
+    </div>
+</div>
+
+<div id="toast"><div class="td"></div><span id="toastMsg"></span></div>
+
+<script>
+const API='/api/contacts';
+let data=[],fil=[],sKey='ext',sDir=1,pg=1,delIdx=-1;
+const PS=25;
+
+window.onload=async()=>{
+    try{const r=await fetch(API);if(r.ok)data=await r.json();}
+    catch(e){toast('Gagal memuat data','err');}
+    filter();
+};
+
+async function push(){
+    try{await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});}
+    catch(e){toast('Gagal simpan ke server!','err');}
+}
+
+function filter(){
+    const q=(document.getElementById('si').value||'').toLowerCase();
+    fil=data.filter(c=>{
+        return (c.firstName||'').toLowerCase().includes(q)||
+               (c.lastName||'').toLowerCase().includes(q)||
+               (c.phone||'').toLowerCase().includes(q);
+    });
+    doSort();pg=1;stats();render();
+}
+
+function srt(k){if(sKey===k)sDir*=-1;else{sKey=k;sDir=1;}doSort();render();}
+function doSort(){
+    const m={ext:'firstName',name:'lastName',dept:'phone'};
+    const f=m[sKey];
+    fil.sort((a,b)=>{
+        const va=(a[f]||'').toLowerCase(),vb=(b[f]||'').toLowerCase();
+        return va<vb?-sDir:va>vb?sDir:0;
+    });
+}
+
+function render(){
+    const tbody=document.getElementById('tb'),emp=document.getElementById('emp'),pgBar=document.getElementById('pgBar');
+    tbody.innerHTML='';
+    if(fil.length===0){emp.style.display='block';pgBar.style.display='none';return;}
+    emp.style.display='none';
+    ['ext','name','dept'].forEach(k=>{
+        const el=document.getElementById('th-'+k);
+        el.classList.toggle('sorted',k===sKey);
+        el.querySelector('.si').textContent=k===sKey?(sDir===1?'↑':'↓'):'↕';
+    });
+    const tot=fil.length,pages=Math.ceil(tot/PS);
+    if(pg>pages)pg=pages;
+    const s=(pg-1)*PS,slice=fil.slice(s,s+PS);
+    slice.forEach(c=>{
+        const ri=data.indexOf(c);
+        const tr=document.createElement('tr');
+        tr.innerHTML=`
+            <td><span class="eb">${c.firstName||''}</span></td>
+            <td>${c.lastName||'<span style="color:var(--mut);font-style:italic">—</span>'}</td>
+            <td>${c.phone?`<span class="db">${c.phone}</span>`:'<span style="color:var(--mut);font-style:italic">—</span>'}</td>
+            <td class="acts">
+                <button class="bico ed" onclick="openEdit(${ri})" title="Edit"><svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+                <button class="bico dl" onclick="openDel(${ri})" title="Hapus"><svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+            </td>`;
+        tbody.appendChild(tr);
+    });
+    if(tot<=PS){pgBar.style.display='none';return;}
+    pgBar.style.display='flex';
+    document.getElementById('pgInfo').textContent=`Menampilkan ${s+1}–${Math.min(s+PS,tot)} dari ${tot} entri`;
+    const btns=document.getElementById('pgBtns');btns.innerHTML='';
+    const ab=(lbl,p,dis=false,act=false)=>{
+        const b=document.createElement('button');b.className='pb'+(act?' a':'');b.textContent=lbl;b.disabled=dis;
+        b.onclick=()=>{pg=p;render();};btns.appendChild(b);
+    };
+    ab('‹',pg-1,pg===1);
+    const sp=Math.max(1,pg-2),ep=Math.min(pages,pg+2);
+    if(sp>1)ab('1',1);
+    if(sp>2){const s2=document.createElement('span');s2.textContent='…';s2.style='padding:0 4px;color:var(--mut)';btns.appendChild(s2);}
+    for(let i=sp;i<=ep;i++)ab(i,i,false,i===pg);
+    if(ep<pages-1){const s2=document.createElement('span');s2.textContent='…';s2.style='padding:0 4px;color:var(--mut)';btns.appendChild(s2);}
+    if(ep<pages)ab(pages,pages);
+    ab('›',pg+1,pg===pages);
+}
+
+function stats(){
+    document.getElementById('sTotal').textContent=data.length;
+    document.getElementById('sNamed').textContent=data.filter(c=>c.lastName).length;
+    document.getElementById('sDept').textContent=new Set(data.map(c=>c.phone).filter(Boolean)).size;
+}
+
+function openAdd(){
+    document.getElementById('editT').textContent='Tambah Extension';
+    document.getElementById('eIdx').value='-1';
+    ['fExt','fName','fDept'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('editOv').classList.add('on');
+    document.getElementById('fExt').focus();
+}
+function openEdit(i){
+    const c=data[i];
+    document.getElementById('editT').textContent='Edit Extension';
+    document.getElementById('eIdx').value=i;
+    document.getElementById('fExt').value=c.firstName||'';
+    document.getElementById('fName').value=c.lastName||'';
+    document.getElementById('fDept').value=c.phone||'';
+    document.getElementById('editOv').classList.add('on');
+    document.getElementById('fName').focus();
+}
+function closeEdit(){document.getElementById('editOv').classList.remove('on');}
+function openDel(i){
+    delIdx=i;const c=data[i];
+    document.getElementById('delInfo').textContent=`Ext ${c.firstName}${c.lastName?' – '+c.lastName:''} akan dihapus permanen.`;
+    document.getElementById('delOv').classList.add('on');
+}
+function closeDel(){document.getElementById('delOv').classList.remove('on');delIdx=-1;}
+
+function saveC(){
+    const i=parseInt(document.getElementById('eIdx').value);
+    const ext=document.getElementById('fExt').value.trim();
+    const name=document.getElementById('fName').value.trim();
+    const dept=document.getElementById('fDept').value.trim();
+    if(!ext&&!name){toast('No. Ext atau Nama wajib diisi','err');return;}
+    const c={firstName:ext,lastName:name,phone:dept};
+    if(i>=0){data[i]=c;toast('Extension diperbarui','ok');}
+    else{data.push(c);toast('Extension ditambahkan','ok');}
+    push();filter();closeEdit();
+}
+function doDel(){
+    if(delIdx<0)return;
+    data.splice(delIdx,1);push();filter();closeDel();toast('Extension dihapus','inf');
+}
+
+['editOv','delOv'].forEach(id=>{
+    document.getElementById(id).addEventListener('click',function(e){if(e.target===this)this.classList.remove('on');});
+});
+document.addEventListener('keydown',e=>{
+    if(e.key==='Escape'){document.getElementById('editOv').classList.remove('on');document.getElementById('delOv').classList.remove('on');}
+});
+document.getElementById('si').addEventListener('input',filter);
+
+/* CSV PARSER - UCM6308A Export */
+// Header mapping: Extension=col0, First Name=col74, Phone Number=col78
+function parseCSVLine(line){
+    const r=[];let cur='',inQ=false;
+    for(let i=0;i<line.length;i++){
+        const ch=line[i];
+        if(ch==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ;}
+        else if(ch===','&&!inQ){r.push(cur);cur='';}
+        else cur+=ch;
+    }
+    r.push(cur);return r;
+}
+
+function parseCSV(csv){
+    const lines=csv.split(/\r?\n/).filter(l=>l.trim()!=='');
+    if(!lines.length)return;
+    let start=0;
+    // Detect header row by checking if col0 is "Extension" (text, not number)
+    const firstCols=parseCSVLine(lines[0]);
+    if(isNaN(firstCols[0].trim())||firstCols[0].trim().toLowerCase()==='extension') start=1;
+    const nc=[];
+    for(let i=start;i<lines.length;i++){
+        const cols=parseCSVLine(lines[i]);
+        const ext=(cols[0]||'').trim();
+        if(!ext||isNaN(ext))continue; // skip non-numeric extensions
+        const namaExt=(cols[74]||'').trim();  // First Name col in UCM
+        const deptRaw=(cols[78]||'').trim();  // Phone Number col in UCM (used as dept)
+        // Extract department from "DEPT-Name" pattern if Phone Number is empty
+        let dept=deptRaw;
+        if(!dept&&namaExt&&namaExt.includes('-')){
+            dept=namaExt.split('-')[0].trim();
         }
+        nc.push({firstName:ext,lastName:namaExt,phone:dept});
+    }
+    handleNew(nc,'CSV UCM');
+}
 
-        function renderTable() {
-            const tbody = document.getElementById('contactTableBody');
-            const emptyState = document.getElementById('emptyState');
-            tbody.innerHTML = '';
-
-            if (contacts.length === 0) {
-                emptyState.style.display = 'block';
-                return;
-            }
-
-            emptyState.style.display = 'none';
-            contacts.forEach((contact, index) => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td>${contact.firstName || ''}</td>
-                    <td>${contact.lastName || ''}</td>
-                    <td>${contact.phone || ''}</td>
-                    <td class="actions">
-                        <button class="btn-icon" onclick="editContact(${index})" title="Edit">
-                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-                        </button>
-                        <button class="btn-icon delete" onclick="deleteContact(${index})" title="Delete">
-                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                        </button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
+function parseXML(xml){
+    try{
+        const doc=new DOMParser().parseFromString(xml,'text/xml');
+        const nodes=doc.getElementsByTagName('Contact');
+        const nc=[];
+        for(let i=0;i<nodes.length;i++){
+            const n=nodes[i];
+            const g=t=>{const el=n.getElementsByTagName(t)[0];return el?el.textContent:'';};
+            let ph='';
+            const pn=n.getElementsByTagName('Phone')[0];
+            if(pn){const el=pn.getElementsByTagName('phonenumber')[0];if(el)ph=el.textContent;}
+            else ph=g('PhoneNumber');
+            nc.push({firstName:g('FirstName'),lastName:g('LastName'),phone:ph});
         }
+        handleNew(nc,'XML');
+    }catch(e){toast('Gagal parse XML','err');}
+}
 
-        function openModal() {
-            document.getElementById('modalTitle').innerText = 'Tambah Kontak';
-            document.getElementById('editIndex').value = '-1';
-            document.getElementById('firstName').value = '';
-            document.getElementById('lastName').value = '';
-            document.getElementById('phoneNumber').value = '';
-            document.getElementById('contactModal').classList.add('active');
-        }
+function handleNew(nc,src){
+    if(!nc.length){toast(`Tidak ada ext valid di file ${src}`,'err');return;}
+    if(data.length>0){
+        const rep=confirm(`Ditemukan ${nc.length} extension dari ${src}.\n\nOK = Ganti semua data\nCancel = Gabung dengan data yang ada`);
+        data=rep?nc:[...data,...nc];
+    }else data=nc;
+    push();filter();toast(`${nc.length} extension dimuat dari ${src}`,'ok');
+}
 
-        function closeModal() {
-            document.getElementById('contactModal').classList.remove('active');
-        }
+document.getElementById('xmlIn').addEventListener('change',e=>{
+    const f=e.target.files[0];if(!f)return;
+    const r=new FileReader();r.onload=ev=>{parseXML(ev.target.result);e.target.value='';};r.readAsText(f);
+});
+document.getElementById('csvIn').addEventListener('change',e=>{
+    const f=e.target.files[0];if(!f)return;
+    const r=new FileReader();r.onload=ev=>{parseCSV(ev.target.result);e.target.value='';};r.readAsText(f);
+});
 
-        function saveContact() {
-            const index = parseInt(document.getElementById('editIndex').value);
-            const contact = {
-                firstName: document.getElementById('firstName').value.trim(),
-                lastName: document.getElementById('lastName').value.trim(),
-                phone: document.getElementById('phoneNumber').value.trim()
-            };
-
-            if (!contact.firstName && !contact.lastName && !contact.phone) {
-                alert("Mohon isi minimal satu field.");
-                return;
-            }
-
-            if (index >= 0) {
-                contacts[index] = contact;
-            } else {
-                contacts.push(contact);
-            }
-
-            saveToStorage();
-            renderTable();
-            closeModal();
-        }
-
-        function editContact(index) {
-            const contact = contacts[index];
-            document.getElementById('modalTitle').innerText = 'Edit Kontak';
-            document.getElementById('editIndex').value = index;
-            document.getElementById('firstName').value = contact.firstName || '';
-            document.getElementById('lastName').value = contact.lastName || '';
-            document.getElementById('phoneNumber').value = contact.phone || '';
-            document.getElementById('contactModal').classList.add('active');
-        }
-
-        function deleteContact(index) {
-            if (confirm("Apakah Anda yakin ingin menghapus kontak ini?")) {
-                contacts.splice(index, 1);
-                saveToStorage();
-                renderTable();
-            }
-        }
-
-        // File Import Handling
-        document.getElementById('xmlInput').addEventListener('change', function(e) {
-            handleFileUpload(e, parseXML);
-        });
-
-        document.getElementById('csvInput').addEventListener('change', function(e) {
-            handleFileUpload(e, parseCSV);
-        });
-
-        function handleFileUpload(e, parseFunction) {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                const content = event.target.result;
-                parseFunction(content);
-                e.target.value = ''; // reset input
-            };
-            reader.readAsText(file);
-        }
-
-        function handleNewContacts(newContacts, sourceType) {
-            if (newContacts.length > 0) {
-                if (contacts.length > 0) {
-                    const replace = confirm(`Ditemukan ${newContacts.length} kontak dari ${sourceType}. Apakah Anda ingin menimpa (replace) kontak yang ada saat ini?\n\n- Klik "OK" untuk menghapus kontak lama dan mengganti dengan yang baru.\n- Klik "Cancel" untuk menggabungkan (append) dengan kontak yang sudah ada.`);
-                    if (replace) {
-                        contacts = newContacts;
-                    } else {
-                        contacts = [...contacts, ...newContacts];
-                    }
-                } else {
-                    contacts = newContacts;
-                }
-                saveToStorage();
-                renderTable();
-                alert(`Berhasil memuat ${newContacts.length} kontak.`);
-            } else {
-                alert(`Tidak ada kontak yang valid ditemukan dalam file ${sourceType}.`);
-            }
-        }
-
-        function parseXML(xmlString) {
-            try {
-                const parser = new DOMParser();
-                const xmlDoc = parser.parseFromString(xmlString, "text/xml");
-                
-                const contactNodes = xmlDoc.getElementsByTagName("Contact");
-                let newContacts = [];
-
-                for (let i = 0; i < contactNodes.length; i++) {
-                    const node = contactNodes[i];
-                    
-                    const getTagVal = (tagName) => {
-                        const el = node.getElementsByTagName(tagName)[0];
-                        return el ? el.textContent : '';
-                    };
-
-                    let phoneNum = '';
-                    const phoneNode = node.getElementsByTagName("Phone")[0];
-                    if (phoneNode) {
-                        const pn = phoneNode.getElementsByTagName("phonenumber")[0];
-                        if (pn) phoneNum = pn.textContent;
-                    } else {
-                        phoneNum = getTagVal("PhoneNumber");
-                    }
-
-                    newContacts.push({
-                        firstName: getTagVal("FirstName"),
-                        lastName: getTagVal("LastName"),
-                        phone: phoneNum
-                    });
-                }
-
-                handleNewContacts(newContacts, 'XML');
-            } catch (err) {
-                console.error(err);
-                alert("Gagal memparsing file XML. Pastikan formatnya benar.");
-            }
-        }
-
-        function parseCSV(csvString) {
-            const lines = csvString.split(/\r?\n/).filter(line => line.trim() !== '');
-            if (lines.length === 0) return;
-
-            let newContacts = [];
-            let startIndex = 0;
-            const firstLine = lines[0].toLowerCase();
-            if (firstLine.includes('name') || firstLine.includes('phone') || firstLine.includes('first')) {
-                startIndex = 1;
-            }
-
-            for (let i = startIndex; i < lines.length; i++) {
-                const parts = lines[i].split(',');
-                if (parts.length >= 3) {
-                    newContacts.push({
-                        firstName: parts[0].trim(),
-                        lastName: parts[1].trim(),
-                        phone: parts[2].trim()
-                    });
-                } else if (parts.length === 2) {
-                    newContacts.push({
-                        firstName: parts[0].trim(),
-                        lastName: '',
-                        phone: parts[1].trim()
-                    });
-                }
-            }
-
-            handleNewContacts(newContacts, 'CSV');
-        }
-
-        // Export manual logic removed because server handles /phonebook.xml
-
-
-        function escapeXML(unsafe) {
-            return unsafe.replace(/[<>&'"]/g, function (c) {
-                switch (c) {
-                    case '<': return '&lt;';
-                    case '>': return '&gt;';
-                    case '&': return '&amp;';
-                    case '\'': return '&apos;';
-                    case '"': return '&quot;';
-                }
-            });
-        }
-    </script>
+let tT;
+function toast(msg,type='inf'){
+    clearTimeout(tT);
+    const el=document.getElementById('toast');
+    el.className=type;document.getElementById('toastMsg').textContent=msg;
+    el.classList.add('show');tT=setTimeout(()=>el.classList.remove('show'),3200);
+}
+</script>
 </body>
 </html>
