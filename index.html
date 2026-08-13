@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
@@ -223,8 +223,10 @@ async function push(){
 function filter(){
     const q=(document.getElementById('si').value||'').toLowerCase();
     fil=data.filter(c=>{
+        const name=(c.lastName||'').trim().toLowerCase();
+        if(!name || name === 'sip(webrtc)') return false; // Abaikan jika nama kosong atau berisi nama default sistem
         return (c.firstName||'').toLowerCase().includes(q)||
-               (c.lastName||'').toLowerCase().includes(q)||
+               name.includes(q)||
                (c.phone||'').toLowerCase().includes(q);
     });
     doSort();pg=1;stats();render();
@@ -367,7 +369,12 @@ function parseCSV(csv){
         const namaExt=(cols[74]||'').trim();  // First Name col in UCM
         const deptRaw=(cols[78]||'').trim();  // Phone Number col in UCM (used as dept)
         // Extract department from "DEPT-Name" pattern if Phone Number is empty
+        // Jangan masukkan nama yang kosong
+        if(!namaExt || namaExt.toLowerCase() === 'sip(webrtc)') continue;
+        
         let dept=deptRaw;
+        if(dept.toLowerCase() === 'yes' || dept.toLowerCase() === 'no') dept = '';
+        
         if(!dept&&namaExt&&namaExt.includes('-')){
             dept=namaExt.split('-')[0].trim();
         }

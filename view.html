@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
@@ -200,8 +200,9 @@ function filter(){
     const clr=document.getElementById('siClear');
     clr.style.display=q?'block':'none';
     fil=data.filter(c=>{
+        const name=(c.lastName||'').trim().toLowerCase();
+        if(!name || name === 'sip(webrtc)') return false; // Abaikan jika nama kosong
         const ext=(c.firstName||'').toLowerCase();
-        const name=(c.lastName||'').toLowerCase();
         const dept=(c.phone||'').toLowerCase();
         const qMatch=!q||ext.includes(q)||name.includes(q)||dept.includes(q);
         const dMatch=!activeDept||(c.phone||'')=== activeDept;
