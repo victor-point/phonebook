@@ -29,6 +29,12 @@ app.get('/', (req, res) => {
 });
 
 app.get('/admin', requireAuth, (req, res) => {
+    res.set({
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'Surrogate-Control': 'no-store'
+    });
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
@@ -72,6 +78,11 @@ function escapeXML(unsafe) {
 
 // API to get contacts for the web UI
 app.get('/api/contacts', (req, res) => {
+    res.set({
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+    });
     res.json(readData());
 });
 
@@ -84,6 +95,28 @@ app.post('/api/contacts', requireAuth, (req, res) => {
     } else {
         res.status(400).json({ success: false, message: 'Invalid data format' });
     }
+});
+
+// API to import contacts (merge mode: skip duplicates, only add new)
+app.post('/api/contacts/import', requireAuth, (req, res) => {
+    const incoming = req.body;
+    if (!Array.isArray(incoming)) {
+        return res.status(400).json({ success: false, message: 'Invalid data format' });
+    }
+    const existing = readData();
+    const existingExts = new Set(existing.map(c => c.firstName));
+    let added = 0, skipped = 0;
+    incoming.forEach(c => {
+        if (existingExts.has(c.firstName)) {
+            skipped++;
+        } else {
+            existing.push(c);
+            existingExts.add(c.firstName);
+            added++;
+        }
+    });
+    writeData(existing);
+    res.json({ success: true, added, skipped, total: existing.length });
 });
 
 // The magical endpoint for the Grandstream phone

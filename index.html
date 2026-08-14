@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin – Phonebook Editor</title>
     <meta name="description" content="Halaman admin phonebook Grandstream UCM6308A">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -140,6 +143,11 @@
             Import CSV UCM
             <input type="file" id="csvIn" accept=".csv">
         </label>
+        <label class="btn">
+            <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+            Import JSON
+            <input type="file" id="jsonIn" accept=".json">
+        </label>
         <button class="btn pr" onclick="openAdd()">
             <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
             Tambah Ext
@@ -211,13 +219,23 @@ let data=[],fil=[],sKey='ext',sDir=1,pg=1,delIdx=-1;
 const PS=25;
 
 window.onload=async()=>{
-    try{const r=await fetch(API);if(r.ok)data=await r.json();}
-    catch(e){toast('Gagal memuat data','err');}
+    try{
+        const r=await fetch(API,{cache:'no-store',credentials:'include'});
+        if(r.ok){
+            data=await r.json();
+        } else {
+            toast('Gagal memuat data: HTTP '+r.status,'err');
+        }
+    }
+    catch(e){toast('Gagal memuat data: '+e.message,'err');}
     filter();
 };
 
 async function push(){
-    try{await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});}
+    try{
+        const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',body:JSON.stringify(data)});
+        if(!r.ok) toast('Gagal simpan: HTTP '+r.status,'err');
+    }
     catch(e){toast('Gagal simpan ke server!','err');}
 }
 
@@ -231,6 +249,14 @@ function filter(){
                (c.phone||'').toLowerCase().includes(q);
     });
     doSort();pg=1;stats();render();
+}
+
+function getLokasi(ext){
+    if(!ext)return 'Lainnya';
+    const e=String(ext).trim();
+    if(e.startsWith('87')&&e.length===5)return 'Gedung SS3';
+    if(e.startsWith('8')&&!e.startsWith('87')&&e.length>=4)return 'Gedung Panin';
+    return 'Lainnya';
 }
 
 function srt(k){if(sKey===k)sDir*=-1;else{sKey=k;sDir=1;}doSort();render();}
@@ -424,11 +450,33 @@ function parseXML(xml){
 
 function handleNew(nc,src){
     if(!nc.length){toast(`Tidak ada ext valid di file ${src}`,'err');return;}
-    if(data.length>0){
-        const rep=confirm(`Ditemukan ${nc.length} extension dari ${src}.\n\nOK = Ganti semua data\nCancel = Gabung dengan data yang ada`);
-        data=rep?nc:[...data,...nc];
-    }else data=nc;
-    push();filter();toast(`${nc.length} extension dimuat dari ${src}`,'ok');
+    
+    // Import via server-side merge: skip duplicates, only add new
+    toast(`Mengimpor ${nc.length} ext dari ${src}...`,'inf');
+    fetch('/api/contacts/import',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        credentials:'include',
+        body:JSON.stringify(nc)
+    })
+    .then(r=>r.json())
+    .then(result=>{
+        if(result.success){
+            // Reload data from server to get latest
+            return fetch(API,{cache:'no-store',credentials:'include'})
+                .then(r=>r.json())
+                .then(d=>{
+                    data=d;
+                    filter();
+                    let msg=`Import ${src} selesai: ${result.added} ext baru ditambahkan`;
+                    if(result.skipped>0) msg+=`, ${result.skipped} ext sudah ada (dilewati)`;
+                    toast(msg,'ok');
+                });
+        } else {
+            toast('Gagal import: '+result.message,'err');
+        }
+    })
+    .catch(e=>toast('Gagal import: '+e.message,'err'));
 }
 
 document.getElementById('xmlIn').addEventListener('change',e=>{
@@ -438,6 +486,24 @@ document.getElementById('xmlIn').addEventListener('change',e=>{
 document.getElementById('csvIn').addEventListener('change',e=>{
     const f=e.target.files[0];if(!f)return;
     const r=new FileReader();r.onload=ev=>{parseCSV(ev.target.result);e.target.value='';};r.readAsText(f);
+});
+document.getElementById('jsonIn').addEventListener('change',e=>{
+    const f=e.target.files[0];if(!f)return;
+    const r=new FileReader();
+    r.onload=ev=>{
+        try{
+            const arr=JSON.parse(ev.target.result);
+            if(!Array.isArray(arr)){toast('JSON harus berupa array','err');return;}
+            const nc=arr.filter(c=>c.firstName&&c.firstName.trim()).map(c=>({
+                firstName:(c.firstName||'').trim(),
+                lastName:(c.lastName||'').trim(),
+                phone:(c.phone||'').trim()
+            }));
+            handleNew(nc,'JSON');
+        }catch(err){toast('Gagal parse JSON: '+err.message,'err');}
+        e.target.value='';
+    };
+    r.readAsText(f);
 });
 
 let tT;
