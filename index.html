@@ -113,11 +113,11 @@
         </div>
     </div>
     <div class="nav-r">
-        <a class="nav-a" href="/">
-            <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-            Halaman View
-        </a>
-        <span class="badge">ADMIN</span>
+        <span class="badge" id="roleBadge">ADMIN</span>
+        <button class="nav-a" onclick="doLogout()" style="background:transparent;border:none;cursor:pointer">
+            <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+            Logout
+        </button>
     </div>
 </nav>
 
@@ -133,22 +133,22 @@
             <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
             <input type="text" id="si" placeholder="Cari no. ext, nama, atau departemen…">
         </div>
-        <label class="btn">
+        <label class="btn admin-only" style="display:none">
             <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
             Upload XML
             <input type="file" id="xmlIn" accept=".xml">
         </label>
-        <label class="btn">
+        <label class="btn admin-only" style="display:none">
             <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-            Import CSV UCM
+            Import CSV
             <input type="file" id="csvIn" accept=".csv">
         </label>
-        <label class="btn">
+        <label class="btn admin-only" style="display:none">
             <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
             Import JSON
             <input type="file" id="jsonIn" accept=".json">
         </label>
-        <button class="btn pr" onclick="openAdd()">
+        <button class="btn pr admin-only" onclick="openAdd()" style="display:none">
             <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
             Tambah Ext
         </button>
@@ -165,7 +165,7 @@
                 <th onclick="srt('name')" id="th-name">Nama Ext <span class="si">↕</span></th>
                 <th onclick="srt('dept')" id="th-dept">Departemen <span class="si">↕</span></th>
                 <th>Lokasi</th>
-                <th style="width:90px;cursor:default">Aksi</th>
+                <th style="width:90px;cursor:default" class="admin-only" style="display:none">Aksi</th>
             </tr></thead>
             <tbody id="tb"></tbody>
         </table>
@@ -217,8 +217,25 @@
 const API='/api/contacts';
 let data=[],fil=[],sKey='ext',sDir=1,pg=1,delIdx=-1;
 const PS=25;
+let userRole = 'user';
 
 window.onload=async()=>{
+    try {
+        const sr = await fetch('/api/session', {cache:'no-store'});
+        const sdata = await sr.json();
+        if(sdata.loggedIn) {
+            userRole = sdata.role;
+            if(userRole === 'admin') {
+                document.querySelectorAll('.admin-only').forEach(el => el.style.display = '');
+                document.getElementById('roleBadge').textContent = 'ADMIN';
+                document.getElementById('roleBadge').style.background = 'linear-gradient(135deg,#f43f5e,#e11d48)';
+            } else {
+                document.getElementById('roleBadge').textContent = 'USER';
+                document.getElementById('roleBadge').style.background = 'linear-gradient(135deg,#10b981,#059669)';
+            }
+        }
+    } catch(e) {}
+
     try{
         const r=await fetch(API,{cache:'no-store',credentials:'include'});
         if(r.ok){
@@ -230,6 +247,13 @@ window.onload=async()=>{
     catch(e){toast('Gagal memuat data: '+e.message,'err');}
     filter();
 };
+
+async function doLogout() {
+    try {
+        await fetch('/api/logout', {method:'POST'});
+        window.location.href = '/login';
+    } catch(e) {}
+}
 
 async function push(){
     try{
@@ -297,10 +321,11 @@ function render(){
             <td>${name||'<span style="color:var(--mut);font-style:italic">—</span>'}</td>
             <td>${dept?`<span class="db">${dept}</span>`:'<span style="color:var(--mut);font-style:italic">—</span>'}</td>
             <td>${locBadge ? `<span style="${locBadge}">${loc}</span>` : `<span style="color:var(--mut);font-size:0.8rem">${loc}</span>`}</td>
-            <td class="acts">
+            ${userRole === 'admin' ? `
+            <td class="acts admin-only">
                 <button class="bico ed" onclick="openEdit(${ri})" title="Edit"><svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
                 <button class="bico dl" onclick="openDel(${ri})" title="Hapus"><svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
-            </td>`;
+            </td>` : ''}`;
         tbody.appendChild(tr);
     });
     if(tot<=PS){pgBar.style.display='none';return;}
@@ -399,35 +424,70 @@ function parseCSV(csvString) {
     let start = 0;
     if (isNaN(firstCols[0].trim()) || headers[0] === 'extension') start = 1;
     
-    let idxExt = headers.indexOf('extension');
-    let idxName = headers.indexOf('first name');
-    let idxPhone = headers.indexOf('phone number');
+    // Deteksi Format CSV
+    let isFormat1 = headers.includes('first name') && headers.includes('last name');
+    let isFormat2 = headers.includes('technology') && headers.includes('enable voicemail') && !headers.includes('first name') && headers.includes('phone number');
     
+    let idxExt = headers.indexOf('extension');
     if (idxExt === -1) idxExt = 0;
-    if (idxName === -1) idxName = 74;
-    if (idxPhone === -1) idxPhone = 78;
+
+    let idxFName = headers.indexOf('first name');
+    let idxLName = headers.indexOf('last name');
+    let idxPhone = headers.indexOf('phone number');
 
     for (let i = start; i < lines.length; i++) {
         const cols = parseCSVLine(lines[i]);
-        if (cols.length < 3) continue;
+        if (cols.length < 2) continue;
         
         const ext = (cols[idxExt] || '').trim().replace(/^"|"$/g,'');
         if (!ext || isNaN(ext)) continue;
 
-        let namaExt = (cols[idxName] || '').trim().replace(/^"|"$/g,'');
-        let deptRaw = cols[idxPhone] !== undefined ? (cols[idxPhone] || '').trim().replace(/^"|"$/g,'') : '';
+        let namaExt = '';
+        let dept = '';
+
+        if (isFormat1) {
+            // Format 1: Extension,First Name,Last Name,...
+            let fname = idxFName !== -1 ? (cols[idxFName] || '').trim().replace(/^"|"$/g,'') : '';
+            let lname = idxLName !== -1 ? (cols[idxLName] || '').trim().replace(/^"|"$/g,'') : '';
+            namaExt = (fname + ' ' + lname).trim();
+            dept = ''; // Tidak ada field department/phone secara eksplisit di format 1, mungkin dari nama?
+            if(!dept && namaExt && namaExt.includes('-')) {
+                dept = namaExt.split('-')[0].trim();
+            }
+        } else {
+            // Format 2: Extension,Technology,..., First Name (di akhir), Last Name, ... Phone Number
+            // Berdasarkan contoh format 2, First Name/Last Name ada di kolom belakang.
+            let fname = idxFName !== -1 ? (cols[idxFName] || '').trim().replace(/^"|"$/g,'') : '';
+            let lname = idxLName !== -1 ? (cols[idxLName] || '').trim().replace(/^"|"$/g,'') : '';
+            namaExt = (fname + ' ' + lname).trim();
+            
+            // Coba ambil dari phone number jika ada, jika tidak, coba ambil dari nama
+            if (idxPhone !== -1) {
+                 dept = (cols[idxPhone] || '').trim().replace(/^"|"$/g,'');
+                 if(dept.toLowerCase() === 'yes' || dept.toLowerCase() === 'no') dept = '';
+            }
+            if(!dept && namaExt && namaExt.includes('-')) {
+                dept = namaExt.split('-')[0].trim();
+            }
+            
+            // Fallback jika tidak ditemukan index yg pas (asumsi format default lama)
+            if (!fname && !lname && idxFName === -1 && cols.length > 74) {
+                 namaExt = (cols[74] || '').trim().replace(/^"|"$/g,'');
+                 if (cols.length > 78) {
+                     dept = (cols[78] || '').trim().replace(/^"|"$/g,'');
+                     if(dept.toLowerCase() === 'yes' || dept.toLowerCase() === 'no') dept = '';
+                 }
+                 if(!dept && namaExt && namaExt.includes('-')) {
+                     dept = namaExt.split('-')[0].trim();
+                 }
+            }
+        }
 
         if(!namaExt || namaExt.toLowerCase() === 'sip(webrtc)') continue;
         
-        let dept=deptRaw;
-        if(dept.toLowerCase() === 'yes' || dept.toLowerCase() === 'no') dept = '';
-        
-        if(!dept&&namaExt&&namaExt.includes('-')){
-            dept=namaExt.split('-')[0].trim();
-        }
         nc.push({firstName:ext,lastName:namaExt,phone:dept});
     }
-    handleNew(nc,'CSV UCM');
+    handleNew(nc,'CSV');
 }
 
 function parseXML(xml){
