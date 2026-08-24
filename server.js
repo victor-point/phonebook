@@ -149,26 +149,36 @@ app.post('/api/contacts', requireLogin, requireAdmin, (req, res) => {
     }
 });
 
-// Import contacts — admin only, skip duplicates
+// Import contacts — admin only, skip duplicates or update name
 app.post('/api/contacts/import', requireLogin, requireAdmin, (req, res) => {
     const incoming = req.body;
     if (!Array.isArray(incoming)) {
         return res.status(400).json({ success: false, message: 'Invalid data format' });
     }
     const existing = readData();
-    const existingExts = new Set(existing.map(c => c.firstName));
-    let added = 0, skipped = 0;
+    const existingMap = new Map();
+    existing.forEach((c, idx) => {
+        existingMap.set(c.firstName, idx);
+    });
+    let added = 0, skipped = 0, updated = 0;
     incoming.forEach(c => {
-        if (existingExts.has(c.firstName)) {
-            skipped++;
+        if (existingMap.has(c.firstName)) {
+            const idx = existingMap.get(c.firstName);
+            if (existing[idx].lastName !== c.lastName) {
+                existing[idx].lastName = c.lastName;
+                if (c.phone) existing[idx].phone = c.phone;
+                updated++;
+            } else {
+                skipped++;
+            }
         } else {
             existing.push(c);
-            existingExts.add(c.firstName);
+            existingMap.set(c.firstName, existing.length - 1);
             added++;
         }
     });
     writeData(existing);
-    res.json({ success: true, added, skipped, total: existing.length });
+    res.json({ success: true, added, skipped, updated, total: existing.length });
 });
 
 // Delete single contact — admin only

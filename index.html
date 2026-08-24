@@ -529,6 +529,7 @@ function handleNew(nc,src){
                     data=d;
                     filter();
                     let msg=`Import ${src} selesai: ${result.added} ext baru ditambahkan`;
+                    if(result.updated>0) msg+=`, ${result.updated} ext diupdate namanya`;
                     if(result.skipped>0) msg+=`, ${result.skipped} ext sudah ada (dilewati)`;
                     toast(msg,'ok');
                 });
