@@ -288,7 +288,7 @@ app.post('/api/contacts/sync-ucm', requireLogin, requireAdmin, async (req, res) 
             const contacts = items.map(item => {
                 const extNum = item.extension || item.account || item.number || item.AccountNumber || '';
                 const fullName = (item.fullname || item.callerid || item.name || item.Name || '').trim();
-                const dept = item.department || item.dept || '';
+                const dept = item.department_name || item.department || item.dept || '';
                 return { firstName: extNum, lastName: fullName, phone: dept };
             }).filter(c => c.firstName);
 
