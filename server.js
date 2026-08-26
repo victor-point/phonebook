@@ -229,51 +229,76 @@ app.post('/api/contacts/sync-ucm', requireLogin, requireAdmin, async (req, res) 
             cookie = loginRes.setCookie.map(c => c.split(';')[0]).join('; ');
         }
 
-        // TAHAP 3: Ambil Daftar Ekstensi
-        console.log('--- TAHAP 3: MENGAMBIL DAFTAR EKSTENSI ---');
-        console.log('Mencoba action: listAccount ke endpoint /api...');
+        // TAHAP 3: Ambil Daftar Ekstensi/Kontak
+        console.log('--- TAHAP 3: MENGAMBIL DAFTAR KONTAK ---');
         
-        // Sesuai manual, kita gunakan listAccount dan sertakan cookie di payload JSON
-        const extPayload = JSON.stringify({ 
-            request: { 
-                action: 'listAccount', 
-                cookie: apiCookie 
-            } 
-        });
-        
-        const r = await ucmPost(C.host, C.port, '/api', extPayload, cookie);
-        const parsed = JSON.parse(r.data);
-        console.log(`[listAccount] status: ${parsed.status} | response keys: ${Object.keys(parsed.response || {}).join(', ')}`);
-        
-        if (parsed.status === -47) {
-            console.log('\n[!] ERROR -47: PERMISSION DENIED (TIDAK ADA HAK AKSES)');
-            throw new Error('Status -47: Akun "api" tidak memiliki izin (privilege) untuk menjalankan "listAccount". Silakan centang hak akses di menu UCM.');
+        // User API hanya punya privilege: Contacts, listDepartment
+        // Coba semua action yang mungkin terkait
+        const actions = [
+            'listPhonebook',
+            'getPhonebook', 
+            'listContact',
+            'getContact',
+            'listAccount',
+            'listDepartment',
+            'getSystemStatus',
+            'getSIPAccount'
+        ];
+
+        let extResult = null;
+        let winningAction = '';
+
+        for (const action of actions) {
+            try {
+                console.log(`  Mencoba: ${action}...`);
+                const r = await ucmPost(C.host, C.port, '/api', { 
+                    request: { action, cookie: apiCookie } 
+                }, cookie);
+                const parsed = JSON.parse(r.data);
+                const keys = Object.keys(parsed.response || {}).join(', ');
+                console.log(`  [${action}] status: ${parsed.status} | keys: ${keys}`);
+                if (parsed.status === 0 && parsed.response && Object.keys(parsed.response).length > 0) {
+                    console.log(`  [+] BERHASIL: ${action}`);
+                    console.log('  Response (800 char):', JSON.stringify(parsed).substring(0, 800));
+                    extResult = parsed;
+                    winningAction = action;
+                    break;
+                }
+            } catch(e) {
+                console.log(`  [${action}] error: ${e.message}`);
+            }
         }
-        
-        if (parsed.status === 0 && parsed.response) {
-            console.log('\n[+] BERHASIL MENGAMBIL DATA EKSTENSI!');
-            console.log('Response (500 char):', JSON.stringify(parsed).substring(0, 500));
+
+        console.log('==================================\n');
+
+        if (extResult) {
+            const responseData = extResult.response;
+            let items = [];
             
-            const responseData = parsed.response;
-            let extensions = responseData.account || responseData.extension || [];
-            if (!Array.isArray(extensions)) extensions = [extensions];
-            
-            console.log(`Total ekstensi: ${extensions.length}`);
-            
-            const contacts = extensions.map(ext => {
-                const extNum = ext.extension || ext.account || '';
-                const fullName = (ext.fullname || ext.callerid || '').trim();
-                const dept = ext.department || '';
+            // Cari array di response
+            for (const key of Object.keys(responseData)) {
+                if (Array.isArray(responseData[key])) {
+                    items = responseData[key];
+                    console.log(`Data ditemukan di key: "${key}", total: ${items.length}`);
+                    if (items.length > 0) console.log('Contoh:', JSON.stringify(items[0]));
+                    break;
+                }
+            }
+
+            const contacts = items.map(item => {
+                const extNum = item.extension || item.account || item.number || item.AccountNumber || '';
+                const fullName = (item.fullname || item.callerid || item.name || item.Name || '').trim();
+                const dept = item.department || item.dept || '';
                 return { firstName: extNum, lastName: fullName, phone: dept };
             }).filter(c => c.firstName);
 
             return res.json({
                 success: true,
-                message: `Berhasil mengambil ${contacts.length} ekstensi dari UCM.`,
+                message: `Berhasil! Action: ${winningAction}. Ditemukan ${contacts.length} item.`,
                 data: contacts
             });
         } else {
-            throw new Error(`Gagal mengambil data. Status: ${parsed.status}. Raw: ${r.data}`);
+            throw new Error('Semua action ditolak. Cek privilege API user di UCM.');
         }
 
         console.log('==================================\n');
