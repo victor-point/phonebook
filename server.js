@@ -132,6 +132,81 @@ function escapeXML(unsafe) {
     });
 }
 
+// ───── UCM API Sync (Tahap 1: Testing 1 Server) ─────
+const https = require('https');
+
+// Konfigurasi 1 Server UCM untuk di-test
+const UCM_CONFIG = {
+    host: '10.88.1.2',     // IP UCM Anda
+    port: 8089,            // Port API HTTPS UCM
+    username: 'api',       // Username UCM
+    password: 'Chooper2108'// Password UCM
+};
+
+// Fungsi helper untuk menembak API UCM (HTTPS Bypass SSL)
+function ucmRequest(path, payload, cookie = null) {
+    return new Promise((resolve, reject) => {
+        const options = {
+            hostname: UCM_CONFIG.host,
+            port: UCM_CONFIG.port,
+            path: path,
+            method: payload ? 'POST' : 'GET',
+            agent: new https.Agent({ rejectUnauthorized: false }), // Bypass SSL mandiri
+            headers: {}
+        };
+        
+        if (payload) {
+            options.headers['Content-Type'] = 'application/json';
+            options.headers['Content-Length'] = Buffer.byteLength(payload);
+        }
+        if (cookie) {
+            options.headers['Cookie'] = cookie;
+        }
+
+        const req = https.request(options, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
+                const setCookie = res.headers['set-cookie'];
+                resolve({ statusCode: res.statusCode, data, setCookie });
+            });
+        });
+
+        req.on('error', error => reject(error));
+        if (payload) req.write(payload);
+        req.end();
+    });
+}
+
+app.post('/api/contacts/sync-ucm', requireLogin, requireAdmin, async (req, res) => {
+    try {
+        console.log('\n--- MENCOBA KONEKSI KE UCM6308A ---');
+        console.log(`Target: https://${UCM_CONFIG.host}:${UCM_CONFIG.port}/api/apiLogin`);
+        
+        // Coba metode login standard UCM
+        const loginPayload = JSON.stringify({ 
+            username: UCM_CONFIG.username, 
+            password: UCM_CONFIG.password 
+        });
+        
+        const loginRes = await ucmRequest('/api/apiLogin', loginPayload);
+        console.log('HTTP Status:', loginRes.statusCode);
+        console.log('Respon UCM:', loginRes.data);
+        console.log('Set-Cookie:', loginRes.setCookie);
+        console.log('-----------------------------------\n');
+
+        res.json({
+            success: true, 
+            message: 'Perintah dikirim. Silakan cek Command Prompt/Terminal server Node.js Anda untuk melihat respon asli dari UCM.',
+            data: []
+        });
+
+    } catch (error) {
+        console.error('\n[!] Gagal Koneksi ke UCM:', error.message);
+        res.status(500).json({ success: false, message: 'Gagal koneksi ke server UCM: ' + error.message });
+    }
+});
+
 // ───── Contacts API ─────
 app.get('/api/contacts', (req, res) => {
     res.set(noCache);

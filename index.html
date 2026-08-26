@@ -148,6 +148,10 @@
             Import JSON
             <input type="file" id="jsonIn" accept=".json">
         </label>
+        <button class="btn admin-only" onclick="syncUCM()" style="display:none;background:var(--surf2);border-color:var(--pri);color:var(--pri)">
+            <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Sync UCM API
+        </button>
         <button class="btn pr admin-only" onclick="openAdd()" style="display:none">
             <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
             Tambah Ext
@@ -253,6 +257,30 @@ async function doLogout() {
         await fetch('/api/logout', {method:'POST'});
         window.location.href = '/login';
     } catch(e) {}
+}
+
+async function syncUCM() {
+    toast('Mensinkronisasi dengan UCM...', 'inf');
+    try {
+        const r = await fetch('/api/contacts/sync-ucm', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include' 
+        });
+        const res = await r.json();
+        
+        if (res.success) {
+            toast(res.message, 'ok');
+            if (res.data && res.data.length > 0) {
+                // Gunakan fungsi handleNew yang sudah ada untuk merge data secara cerdas
+                handleNew(res.data, 'UCM API');
+            }
+        } else {
+            toast('Gagal Sync: ' + res.message, 'err');
+        }
+    } catch (e) {
+        toast('Error koneksi saat Sync UCM', 'err');
+    }
 }
 
 async function push(){
