@@ -132,36 +132,32 @@ function escapeXML(unsafe) {
     });
 }
 
-// ───── UCM API Sync (Tahap 1: Testing 1 Server) ─────
+// ───── UCM API Sync (Old HTTPS API - Port 8443) ─────
 const https = require('https');
+const crypto = require('crypto');
 
-// Konfigurasi 1 Server UCM untuk di-test
+// Konfigurasi Server UCM - Old HTTPS API
 const UCM_CONFIG = {
-    host: '10.88.1.2',     // IP UCM Anda
-    port: 8089,            // Port API HTTPS UCM
-    username: 'api',       // Username UCM
-    password: 'Chooper2108'// Password UCM
+    host: '10.88.1.2',
+    port: 8443,              // Port Old API dari screenshot
+    username: 'cdrapi',      // Username dari screenshot
+    password: 'cdrapi123'    // Password cdrapi
 };
 
-// Fungsi helper untuk menembak API UCM (HTTPS Bypass SSL)
-function ucmRequest(path, payload, cookie = null) {
+// Fungsi helper: GET request ke UCM Old API (CGI format)
+function ucmGet(path) {
     return new Promise((resolve, reject) => {
+        const url = `https://${UCM_CONFIG.host}:${UCM_CONFIG.port}${path}`;
+        console.log('[UCM GET]', url);
+        
         const options = {
             hostname: UCM_CONFIG.host,
             port: UCM_CONFIG.port,
             path: path,
-            method: payload ? 'POST' : 'GET',
-            agent: new https.Agent({ rejectUnauthorized: false }), // Bypass SSL mandiri
+            method: 'GET',
+            agent: new https.Agent({ rejectUnauthorized: false }),
             headers: {}
         };
-        
-        if (payload) {
-            options.headers['Content-Type'] = 'application/json';
-            options.headers['Content-Length'] = Buffer.byteLength(payload);
-        }
-        if (cookie) {
-            options.headers['Cookie'] = cookie;
-        }
 
         const req = https.request(options, (res) => {
             let data = '';
@@ -173,37 +169,130 @@ function ucmRequest(path, payload, cookie = null) {
         });
 
         req.on('error', error => reject(error));
-        if (payload) req.write(payload);
+        req.setTimeout(10000, () => { req.destroy(); reject(new Error('Timeout koneksi ke UCM')); });
+        req.end();
+    });
+}
+
+// Fungsi helper: GET request dengan cookie
+function ucmGetWithCookie(path, cookie) {
+    return new Promise((resolve, reject) => {
+        const options = {
+            hostname: UCM_CONFIG.host,
+            port: UCM_CONFIG.port,
+            path: path,
+            method: 'GET',
+            agent: new https.Agent({ rejectUnauthorized: false }),
+            headers: { 'Cookie': cookie }
+        };
+
+        const req = https.request(options, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => resolve({ statusCode: res.statusCode, data }));
+        });
+
+        req.on('error', error => reject(error));
+        req.setTimeout(10000, () => { req.destroy(); reject(new Error('Timeout')); });
         req.end();
     });
 }
 
 app.post('/api/contacts/sync-ucm', requireLogin, requireAdmin, async (req, res) => {
     try {
-        console.log('\n--- MENCOBA KONEKSI KE UCM6308A ---');
-        console.log(`Target: https://${UCM_CONFIG.host}:${UCM_CONFIG.port}/api/apiLogin`);
+        // ===== TAHAP 1: Request Challenge =====
+        console.log('\n========== SYNC UCM (Old API) ==========');
+        console.log('--- TAHAP 1: REQUEST CHALLENGE ---');
         
-        // Coba metode login standard UCM
-        const loginPayload = JSON.stringify({ 
-            username: UCM_CONFIG.username, 
-            password: UCM_CONFIG.password 
-        });
+        const chRes = await ucmGet(`/cgi?action=challenge&user=${UCM_CONFIG.username}`);
+        console.log('Status:', chRes.statusCode);
+        console.log('Response:', chRes.data);
+
+        let chData;
+        try { chData = JSON.parse(chRes.data); } catch(e) {
+            // Old API kadang return format non-JSON
+            console.log('Raw (bukan JSON):', chRes.data);
+            throw new Error('Response challenge bukan JSON. Lihat terminal untuk raw data.');
+        }
+
+        if (chData.status !== 0 && !chData.challenge) {
+            // Coba cek apakah challenge ada di level atas
+            if (!chData.response || !chData.response.challenge) {
+                throw new Error('Challenge gagal. Response: ' + JSON.stringify(chData));
+            }
+        }
+
+        const challenge = chData.challenge || (chData.response && chData.response.challenge);
+        console.log('Challenge diterima:', challenge);
+
+        // Simpan cookie
+        let cookie = chRes.setCookie ? chRes.setCookie.map(c => c.split(';')[0]).join('; ') : '';
+
+        // ===== TAHAP 2: Login dengan MD5 Token =====
+        console.log('\n--- TAHAP 2: LOGIN ---');
+        const token = crypto.createHash('md5').update(challenge + UCM_CONFIG.password).digest('hex');
+        console.log('MD5 Token:', token);
+
+        const loginRes = await ucmGet(`/cgi?action=login&user=${UCM_CONFIG.username}&token=${token}`);
+        console.log('Status:', loginRes.statusCode);
+        console.log('Response:', loginRes.data);
+
+        let loginData;
+        try { loginData = JSON.parse(loginRes.data); } catch(e) {
+            console.log('Raw (bukan JSON):', loginRes.data);
+            throw new Error('Response login bukan JSON.');
+        }
+
+        // Cek cookie baru
+        if (loginRes.setCookie) {
+            cookie = loginRes.setCookie.map(c => c.split(';')[0]).join('; ');
+        }
+
+        const loginCookie = loginData.cookie || (loginData.response && loginData.response.cookie) || cookie;
+        console.log('[+] Login selesai. Cookie/Token:', loginCookie);
+
+        // ===== TAHAP 3: Ambil Daftar Ekstensi =====
+        console.log('\n--- TAHAP 3: AMBIL DAFTAR EKSTENSI ---');
         
-        const loginRes = await ucmRequest('/api/apiLogin', loginPayload);
-        console.log('HTTP Status:', loginRes.statusCode);
-        console.log('Respon UCM:', loginRes.data);
-        console.log('Set-Cookie:', loginRes.setCookie);
-        console.log('-----------------------------------\n');
+        // Coba beberapa endpoint yang umum di Old API
+        const endpoints = [
+            `/cgi?action=listAccount&cookie=${loginCookie}`,
+            `/cgi?action=getExtenList&cookie=${loginCookie}`,
+            `/cgi?action=listPJSIPExtension&cookie=${loginCookie}`
+        ];
+        
+        let extData = null;
+        for (const ep of endpoints) {
+            try {
+                console.log('Mencoba endpoint:', ep);
+                const extRes = cookie 
+                    ? await ucmGetWithCookie(ep, cookie) 
+                    : await ucmGet(ep);
+                console.log('Response:', extRes.data.substring(0, 500));
+                
+                const parsed = JSON.parse(extRes.data);
+                if (parsed.status === 0 || parsed.response) {
+                    extData = parsed;
+                    console.log('[+] Endpoint berhasil!');
+                    break;
+                }
+            } catch(e) {
+                console.log('Endpoint gagal:', e.message);
+            }
+        }
+
+        console.log('=========================================\n');
 
         res.json({
-            success: true, 
-            message: 'Perintah dikirim. Silakan cek Command Prompt/Terminal server Node.js Anda untuk melihat respon asli dari UCM.',
+            success: true,
+            message: 'Proses selesai. Cek terminal untuk melihat respon dari UCM.',
             data: []
         });
 
     } catch (error) {
-        console.error('\n[!] Gagal Koneksi ke UCM:', error.message);
-        res.status(500).json({ success: false, message: 'Gagal koneksi ke server UCM: ' + error.message });
+        console.error('\n[!] Error:', error.message);
+        console.log('=========================================\n');
+        res.status(500).json({ success: false, message: error.message });
     }
 });
 
