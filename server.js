@@ -251,25 +251,45 @@ app.post('/api/contacts/sync-ucm', requireLogin, requireAdmin, async (req, res) 
 
         for (const action of actions) {
             try {
-                console.log(`  Mencoba action: ${action}...`);
-                // Hapus cookie dari payload JSON, cukup lewat HTTP Header (cookie) saja
-                const r = await ucmPost(C.host, C.port, '/api', { 
+                console.log(`  Mencoba action: ${action} di path /api/${action}...`);
+                // Coba hit ke /api/nama_action
+                let r = await ucmPost(C.host, C.port, `/api/${action}`, { 
                     request: { action } 
                 }, cookie);
-                const parsed = JSON.parse(r.data);
-                console.log(`  [${action}] status: ${parsed.status} | response keys: ${Object.keys(parsed.response || {}).join(', ')}`);
                 
-                // Status 0 artinya sukses
+                let parsed;
+                try { parsed = JSON.parse(r.data); } catch(e) { parsed = { status: 'non-json' }; }
+                
+                console.log(`  [/api/${action}] status: ${parsed.status} | keys: ${Object.keys(parsed.response || {}).join(', ')}`);
+                
                 if (parsed.status === 0 && parsed.response) {
                     extResult = parsed;
                     winningAction = action;
-                    console.log(`\n  [+] ACTION DITEMUKAN: ${action}`);
-                    console.log('  Response (500 char):', JSON.stringify(parsed).substring(0, 500));
                     break;
                 }
+
+                // Jika gagal, coba dengan tambahan cookie di dalam payload (beberapa firmware minta ini)
+                if (parsed.status === -47 || parsed.status === -6) {
+                    r = await ucmPost(C.host, C.port, `/api/${action}`, { 
+                        request: { action, cookie: apiCookie } 
+                    }, cookie);
+                    try { parsed = JSON.parse(r.data); } catch(e) { parsed = { status: 'non-json' }; }
+                    
+                    if (parsed.status === 0 && parsed.response) {
+                        extResult = parsed;
+                        winningAction = `${action} (with cookie payload)`;
+                        break;
+                    }
+                }
+
             } catch(e) {
                 console.log(`  [${action}] error: ${e.message}`);
             }
+        }
+
+        if (extResult) {
+            console.log(`\n  [+] ACTION DITEMUKAN: ${winningAction}`);
+            console.log('  Response (500 char):', JSON.stringify(extResult).substring(0, 500));
         }
 
         console.log('==================================\n');
