@@ -196,134 +196,138 @@ function ucmPost(host, port, path, body, cookie) {
     });
 }
 
-// ===== ENDPOINT: Test API Old (Port 8443) =====
-app.post('/api/contacts/sync-ucm-old', requireLogin, requireAdmin, async (req, res) => {
-    const C = UCM_OLD;
-    console.log('\n========== TEST UCM OLD API (Port 8443) ==========');
-    
-    // Coba berbagai path yang umum di UCM Old API
-    const paths = ['/cgi', '/api', '/cgi-bin/api', '/manager'];
-    let hasil = [];
-
-    for (const basePath of paths) {
-        try {
-            const challengePath = `${basePath}?action=challenge&user=${C.username}`;
-            const r = await ucmGet(C.host, C.port, challengePath);
-            console.log(`[${basePath}] Status: ${r.statusCode} | Response: ${r.data.substring(0, 200)}`);
-            hasil.push({ path: basePath, status: r.statusCode, response: r.data.substring(0, 200) });
-            
-            // Jika dapat JSON dengan challenge, langsung lanjut login
-            try {
-                const parsed = JSON.parse(r.data);
-                if (parsed.challenge || (parsed.response && parsed.response.challenge)) {
-                    const challenge = parsed.challenge || parsed.response.challenge;
-                    console.log(`[+] Challenge ditemukan di path ${basePath}:`, challenge);
-                    
-                    const token = crypto.createHash('md5').update(challenge + C.password).digest('hex');
-                    const loginPath = `${basePath}?action=login&user=${C.username}&token=${token}`;
-                    const cookie = r.setCookie ? r.setCookie.map(c => c.split(';')[0]).join('; ') : '';
-                    
-                    const lr = await ucmGet(C.host, C.port, loginPath);
-                    console.log(`[${basePath}] Login Status: ${lr.statusCode} | Response: ${lr.data.substring(0, 300)}`);
-                    hasil.push({ path: basePath + ' LOGIN', status: lr.statusCode, response: lr.data.substring(0, 300) });
-                }
-            } catch(e) { /* bukan JSON, skip */ }
-        } catch (e) {
-            console.log(`[${basePath}] Error: ${e.message}`);
-            hasil.push({ path: basePath, status: 'ERROR', response: e.message });
-        }
-    }
-
-    console.log('===================================================\n');
-    res.json({ success: true, message: 'Test Old API selesai. Lihat terminal.', hasil });
-});
-
-// ===== ENDPOINT: Test API New (Port 8089) =====
-app.post('/api/contacts/sync-ucm-new', requireLogin, requireAdmin, async (req, res) => {
+// ===== ENDPOINT: Sync UCM (Format yang berhasil: POST /api) =====
+app.post('/api/contacts/sync-ucm', requireLogin, requireAdmin, async (req, res) => {
     const C = UCM_NEW;
-    console.log('\n========== TEST UCM NEW API (Port 8089) ==========');
+    console.log('\n========== SYNC UCM API ==========');
+    
+    try {
+        // TAHAP 1: Challenge
+        console.log('--- TAHAP 1: CHALLENGE ---');
+        const chRes = await ucmPost(C.host, C.port, '/api', { 
+            request: { action: 'challenge', user: C.username } 
+        });
+        const chData = JSON.parse(chRes.data);
+        if (chData.status !== 0) throw new Error('Challenge gagal: ' + chRes.data);
+        const challenge = chData.response.challenge;
+        console.log('[+] Challenge:', challenge);
+        
+        let cookie = chRes.setCookie ? chRes.setCookie.map(c => c.split(';')[0]).join('; ') : '';
 
-    // Coba berbagai format challenge request
-    const attempts = [
-        { label: 'Format 1: {request:{action,user}}', path: '/api', body: { request: { action: 'challenge', user: C.username } } },
-        { label: 'Format 2: {action,user} ke /api', path: '/api', body: { action: 'challenge', user: C.username } },
-        { label: 'Format 3: {request:{action,user}} ke /api/apiLogin', path: '/api/apiLogin', body: { request: { action: 'challenge', user: C.username } } },
-        { label: 'Format 4: {action,user} ke /api/apiLogin', path: '/api/apiLogin', body: { action: 'challenge', user: C.username } },
-        { label: 'Format 5: GET /cgi challenge', path: `/cgi?action=challenge&user=${C.username}`, body: null },
-    ];
-
-    let hasil = [];
-
-    for (const att of attempts) {
-        try {
-            let r;
-            if (att.body) {
-                r = await ucmPost(C.host, C.port, att.path, att.body);
-            } else {
-                r = await ucmGet(C.host, C.port, att.path);
-            }
-            console.log(`[${att.label}]`);
-            console.log(`  Status: ${r.statusCode} | Response: ${r.data.substring(0, 300)}`);
-            hasil.push({ format: att.label, status: r.statusCode, response: r.data.substring(0, 300) });
-
-            // Jika dapat challenge, coba login
-            try {
-                const parsed = JSON.parse(r.data);
-                const challenge = parsed.challenge || (parsed.response && parsed.response.challenge);
-                if (challenge) {
-                    console.log(`  [+] CHALLENGE DITEMUKAN: ${challenge}`);
-                    const token = crypto.createHash('md5').update(challenge + C.password).digest('hex');
-                    const cookie = r.setCookie ? r.setCookie.map(c => c.split(';')[0]).join('; ') : '';
-                    
-                    // Login pakai format yang sama
-                    const loginBody = att.body 
-                        ? (att.body.request 
-                            ? { request: { action: 'login', user: C.username, token } }
-                            : { action: 'login', user: C.username, token })
-                        : null;
-                    
-                    let lr;
-                    if (loginBody) {
-                        lr = await ucmPost(C.host, C.port, att.path, loginBody, cookie);
-                    } else {
-                        lr = await ucmGet(C.host, C.port, `/cgi?action=login&user=${C.username}&token=${token}`);
-                    }
-                    console.log(`  Login Response: ${lr.data.substring(0, 400)}`);
-                    hasil.push({ format: att.label + ' → LOGIN', status: lr.statusCode, response: lr.data.substring(0, 400) });
-
-                    // Jika login berhasil, coba ambil extension list
-                    try {
-                        const loginParsed = JSON.parse(lr.data);
-                        if (loginParsed.status === 0) {
-                            console.log('  [+] LOGIN BERHASIL! Mencoba ambil extension list...');
-                            const loginCookie = lr.setCookie ? lr.setCookie.map(c => c.split(';')[0]).join('; ') : cookie;
-                            
-                            const extBody = att.body 
-                                ? (att.body.request 
-                                    ? { request: { action: 'listAccount' } }
-                                    : { action: 'listAccount' })
-                                : null;
-                            
-                            let er;
-                            if (extBody) {
-                                er = await ucmPost(C.host, C.port, att.path, extBody, loginCookie);
-                            } else {
-                                er = await ucmGet(C.host, C.port, `/cgi?action=listAccount`);
-                            }
-                            console.log(`  Extension List: ${er.data.substring(0, 500)}`);
-                            hasil.push({ format: 'EXTENSION LIST', status: er.statusCode, response: er.data.substring(0, 500) });
-                        }
-                    } catch(e) {}
-                }
-            } catch(e) { /* bukan JSON */ }
-        } catch (e) {
-            console.log(`[${att.label}] Error: ${e.message}`);
-            hasil.push({ format: att.label, status: 'ERROR', response: e.message });
+        // TAHAP 2: Login
+        console.log('--- TAHAP 2: LOGIN ---');
+        const token = crypto.createHash('md5').update(challenge + C.password).digest('hex');
+        const loginRes = await ucmPost(C.host, C.port, '/api', { 
+            request: { action: 'login', user: C.username, token } 
+        }, cookie);
+        const loginData = JSON.parse(loginRes.data);
+        if (loginData.status !== 0) throw new Error('Login gagal: ' + loginRes.data);
+        const apiCookie = loginData.response.cookie;
+        console.log('[+] Login berhasil! Cookie:', apiCookie);
+        
+        if (loginRes.setCookie) {
+            cookie = loginRes.setCookie.map(c => c.split(';')[0]).join('; ');
         }
-    }
 
-    console.log('===================================================\n');
-    res.json({ success: true, message: 'Test New API selesai. Lihat terminal.', hasil });
+        // TAHAP 3: Cari action yang tepat untuk daftar ekstensi
+        console.log('--- TAHAP 3: MENCARI DAFTAR EKSTENSI ---');
+        const actions = [
+            'listSIPExtension',
+            'listExtension', 
+            'getSIPAccountList',
+            'getExtenList',
+            'listSIPAccount',
+            'listPJSIPExtension',
+            'getPJSIPExtenList',
+            'listAccount',
+            'getAccountList',
+            'getSIPExtensionList',
+            'listSIPUsers',
+            'getSIPUsers'
+        ];
+
+        let extResult = null;
+        let winningAction = '';
+
+        for (const action of actions) {
+            try {
+                console.log(`  Mencoba action: ${action}...`);
+                const r = await ucmPost(C.host, C.port, '/api', { 
+                    request: { action, cookie: apiCookie } 
+                }, cookie);
+                const parsed = JSON.parse(r.data);
+                console.log(`  [${action}] status: ${parsed.status} | response keys: ${Object.keys(parsed.response || {}).join(', ')}`);
+                
+                if (parsed.status === 0 && parsed.response && Object.keys(parsed.response).length > 0) {
+                    extResult = parsed;
+                    winningAction = action;
+                    console.log(`\n  [+] ACTION DITEMUKAN: ${action}`);
+                    console.log('  Response (500 char):', JSON.stringify(parsed).substring(0, 500));
+                    break;
+                }
+            } catch(e) {
+                console.log(`  [${action}] error: ${e.message}`);
+            }
+        }
+
+        console.log('==================================\n');
+
+        if (extResult && winningAction) {
+            // Parse data ekstensi dari response
+            const responseData = extResult.response;
+            let extensions = [];
+            
+            // Coba beberapa kemungkinan struktur response
+            if (Array.isArray(responseData)) {
+                extensions = responseData;
+            } else if (responseData.extension) {
+                extensions = Array.isArray(responseData.extension) ? responseData.extension : [responseData.extension];
+            } else if (responseData.account) {
+                extensions = Array.isArray(responseData.account) ? responseData.account : [responseData.account];
+            } else {
+                // Coba cari array di dalam response
+                for (const key of Object.keys(responseData)) {
+                    if (Array.isArray(responseData[key])) {
+                        extensions = responseData[key];
+                        console.log(`Data ekstensi ditemukan di key: "${key}"`);
+                        break;
+                    }
+                }
+            }
+
+            console.log(`Total ekstensi ditemukan: ${extensions.length}`);
+            if (extensions.length > 0) {
+                console.log('Contoh data pertama:', JSON.stringify(extensions[0]));
+            }
+
+            // Map ke format phonebook kita
+            const contacts = extensions.map(ext => {
+                const extNum = ext.extension || ext.exten || ext.account || ext.number || '';
+                const firstName = ext.first_name || ext.firstname || ext.callerid || ext.caller_id || '';
+                const lastName = ext.last_name || ext.lastname || '';
+                const fullName = (firstName + ' ' + lastName).trim();
+                const dept = ext.department || ext.dept || '';
+                return { firstName: extNum, lastName: fullName, phone: dept };
+            }).filter(c => c.firstName); // Filter yang punya nomor ext
+
+            res.json({
+                success: true,
+                message: `Berhasil! Action: ${winningAction}. Ditemukan ${contacts.length} ekstensi.`,
+                data: contacts
+            });
+        } else {
+            res.json({
+                success: true,
+                message: 'Login berhasil tapi belum menemukan action yang tepat. Cek terminal untuk detail.',
+                data: []
+            });
+        }
+
+    } catch (error) {
+        console.error('[!] Error:', error.message);
+        console.log('==================================\n');
+        res.status(500).json({ success: false, message: error.message });
+    }
 });
 
 // ───── Contacts API ─────

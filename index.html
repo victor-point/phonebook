@@ -148,13 +148,9 @@
             Import JSON
             <input type="file" id="jsonIn" accept=".json">
         </label>
-        <button class="btn admin-only" onclick="syncUCM('old')" style="display:none;background:rgba(234,179,8,0.15);border-color:rgba(234,179,8,0.5);color:#facc15">
+        <button class="btn admin-only" onclick="syncUCM()" style="display:none;background:rgba(16,185,129,0.15);border-color:rgba(16,185,129,0.5);color:#34d399">
             <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-            Test Old API :8443
-        </button>
-        <button class="btn admin-only" onclick="syncUCM('new')" style="display:none;background:rgba(16,185,129,0.15);border-color:rgba(16,185,129,0.5);color:#34d399">
-            <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-            Test New API :8089
+            Sync UCM API
         </button>
         <button class="btn pr admin-only" onclick="openAdd()" style="display:none">
             <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
@@ -263,12 +259,10 @@ async function doLogout() {
     } catch(e) {}
 }
 
-async function syncUCM(type) {
-    const endpoint = type === 'old' ? '/api/contacts/sync-ucm-old' : '/api/contacts/sync-ucm-new';
-    const label = type === 'old' ? 'Old API :8443' : 'New API :8089';
-    toast(`Testing ${label}...`, 'inf');
+async function syncUCM() {
+    toast('Sync UCM API...', 'inf');
     try {
-        const r = await fetch(endpoint, { 
+        const r = await fetch('/api/contacts/sync-ucm', { 
             method: 'POST', 
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include' 
@@ -276,15 +270,15 @@ async function syncUCM(type) {
         const res = await r.json();
         
         if (res.success) {
-            toast(`${label}: ${res.message}`, 'ok');
+            toast(res.message, 'ok');
             if (res.data && res.data.length > 0) {
                 handleNew(res.data, 'UCM API');
             }
         } else {
-            toast(`${label}: ${res.message}`, 'err');
+            toast(res.message, 'err');
         }
     } catch (e) {
-        toast(`Error ${label}: ` + e.message, 'err');
+        toast('Error koneksi: ' + e.message, 'err');
     }
 }
 
