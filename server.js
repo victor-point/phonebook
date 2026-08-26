@@ -196,124 +196,72 @@ function ucmPost(host, port, path, body, cookie) {
     });
 }
 
-// ===== ENDPOINT: Sync UCM (Format yang berhasil: POST /api) =====
-app.post('/api/contacts/sync-ucm', requireLogin, requireAdmin, async (req, res) => {
+
+// ===== FUNGSI: Ambil Data Langsung dari UCM (Live Fetch) =====
+async function fetchUCMContacts() {
     const C = UCM_NEW;
-    console.log('\n========== SYNC UCM API ==========');
+    const chRes = await ucmPost(C.host, C.port, '/api', { request: { action: 'challenge', user: C.username } });
+    const chData = JSON.parse(chRes.data);
+    if (chData.status !== 0) throw new Error('Challenge gagal');
     
+    let cookie = chRes.setCookie ? chRes.setCookie.map(c => c.split(';')[0]).join('; ') : '';
+    const challenge = chData.response.challenge;
+    const token = require('crypto').createHash('md5').update(challenge + C.password).digest('hex');
+    
+    const loginRes = await ucmPost(C.host, C.port, '/api', { request: { action: 'login', user: C.username, token } }, cookie);
+    const loginData = JSON.parse(loginRes.data);
+    if (loginData.status !== 0) throw new Error('Login gagal');
+    const apiCookie = loginData.response.cookie;
+    
+    if (loginRes.setCookie) cookie = loginRes.setCookie.map(c => c.split(';')[0]).join('; ');
+
+    const extPayload = JSON.stringify({ request: { action: 'listAccount', cookie: apiCookie } });
+    const r = await ucmPost(C.host, C.port, '/api', extPayload, cookie);
+    const parsed = JSON.parse(r.data);
+    
+    if (parsed.status !== 0 || !parsed.response) return [];
+
+    let extensions = parsed.response.account || parsed.response.extension || [];
+    if (!Array.isArray(extensions)) extensions = [extensions];
+    
+    return extensions.map(item => {
+        const extNum = item.extension || item.account || item.number || '';
+        const fullName = (item.fullname || item.callerid || item.name || '').trim();
+        const dept = item.department_name || item.department || '';
+        return { firstName: extNum, lastName: fullName, phone: dept };
+    }).filter(c => c.firstName);
+}
+
+async function getLiveMergedContacts() {
+    let localData = readData();
     try {
-        // TAHAP 1: Challenge
-        console.log('--- TAHAP 1: CHALLENGE ---');
-        const chRes = await ucmPost(C.host, C.port, '/api', { 
-            request: { action: 'challenge', user: C.username } 
-        });
-        const chData = JSON.parse(chRes.data);
-        if (chData.status !== 0) throw new Error('Challenge gagal: ' + chRes.data);
-        const challenge = chData.response.challenge;
-        console.log('[+] Challenge:', challenge);
-        
-        let cookie = chRes.setCookie ? chRes.setCookie.map(c => c.split(';')[0]).join('; ') : '';
-
-        // TAHAP 2: Login
-        console.log('--- TAHAP 2: LOGIN ---');
-        const token = crypto.createHash('md5').update(challenge + C.password).digest('hex');
-        const loginRes = await ucmPost(C.host, C.port, '/api', { 
-            request: { action: 'login', user: C.username, token } 
-        }, cookie);
-        const loginData = JSON.parse(loginRes.data);
-        if (loginData.status !== 0) throw new Error('Login gagal: ' + loginRes.data);
-        const apiCookie = loginData.response.cookie;
-        console.log('[+] Login berhasil! Cookie:', apiCookie);
-        
-        if (loginRes.setCookie) {
-            cookie = loginRes.setCookie.map(c => c.split(';')[0]).join('; ');
+        const ucmContacts = await fetchUCMContacts();
+        if (ucmContacts && ucmContacts.length > 0) {
+            const map = new Map();
+            localData.forEach(c => map.set(c.firstName, c));
+            ucmContacts.forEach(c => map.set(c.firstName, c));
+            localData = Array.from(map.values());
+            writeData(localData);
         }
+    } catch (e) {
+        console.error("[Live Fetch Error]:", e.message);
+    }
+    return localData;
+}
 
-        // TAHAP 3: Ambil Daftar Ekstensi/Kontak
-        console.log('--- TAHAP 3: MENGAMBIL DAFTAR KONTAK ---');
-        
-        // User API hanya punya privilege: Contacts, listDepartment
-        // Coba semua action yang mungkin terkait
-        const actions = [
-            'listPhonebook',
-            'getPhonebook', 
-            'listContact',
-            'getContact',
-            'listAccount',
-            'listDepartment',
-            'getSystemStatus',
-            'getSIPAccount'
-        ];
-
-        let extResult = null;
-        let winningAction = '';
-
-        for (const action of actions) {
-            try {
-                console.log(`  Mencoba: ${action}...`);
-                const r = await ucmPost(C.host, C.port, '/api', { 
-                    request: { action, cookie: apiCookie } 
-                }, cookie);
-                const parsed = JSON.parse(r.data);
-                const keys = Object.keys(parsed.response || {}).join(', ');
-                console.log(`  [${action}] status: ${parsed.status} | keys: ${keys}`);
-                if (parsed.status === 0 && parsed.response && Object.keys(parsed.response).length > 0) {
-                    console.log(`  [+] BERHASIL: ${action}`);
-                    console.log('  Response (800 char):', JSON.stringify(parsed).substring(0, 800));
-                    extResult = parsed;
-                    winningAction = action;
-                    break;
-                }
-            } catch(e) {
-                console.log(`  [${action}] error: ${e.message}`);
-            }
-        }
-
-        console.log('==================================\n');
-
-        if (extResult) {
-            const responseData = extResult.response;
-            let items = [];
-            
-            // Cari array di response
-            for (const key of Object.keys(responseData)) {
-                if (Array.isArray(responseData[key])) {
-                    items = responseData[key];
-                    console.log(`Data ditemukan di key: "${key}", total: ${items.length}`);
-                    if (items.length > 0) console.log('Contoh:', JSON.stringify(items[0]));
-                    break;
-                }
-            }
-
-            const contacts = items.map(item => {
-                const extNum = item.extension || item.account || item.number || item.AccountNumber || '';
-                const fullName = (item.fullname || item.callerid || item.name || item.Name || '').trim();
-                const dept = item.department_name || item.department || item.dept || '';
-                return { firstName: extNum, lastName: fullName, phone: dept };
-            }).filter(c => c.firstName);
-
-            return res.json({
-                success: true,
-                message: `Berhasil! Action: ${winningAction}. Ditemukan ${contacts.length} item.`,
-                data: contacts
-            });
-        } else {
-            throw new Error('Semua action ditolak. Cek privilege API user di UCM.');
-        }
-
-        console.log('==================================\n');
-
+app.post('/api/contacts/sync-ucm', requireLogin, requireAdmin, async (req, res) => {
+    try {
+        const contacts = await fetchUCMContacts();
+        res.json({ success: true, message: `Berhasil sinkronisasi ${contacts.length} ekstensi dari UCM.`, data: contacts });
     } catch (error) {
-        console.error('[!] Error:', error.message);
-        console.log('==================================\n');
         res.status(500).json({ success: false, message: error.message });
     }
 });
 
 // ───── Contacts API ─────
-app.get('/api/contacts', (req, res) => {
+app.get('/api/contacts', async (req, res) => {
     res.set(noCache);
-    res.json(readData());
+    res.json(await getLiveMergedContacts());
 });
 
 // Save (overwrite) all contacts — admin only
@@ -388,8 +336,8 @@ app.put('/api/contacts/:ext', requireLogin, requireAdmin, (req, res) => {
 });
 
 // ───── Grandstream XML ─────
-app.get('/phonebook.xml', (req, res) => {
-    const contacts = readData();
+app.get('/phonebook.xml', async (req, res) => {
+    const contacts = await getLiveMergedContacts();
 
     let xmlString = '<AddressBook>\n';
     xmlString += '<pbgroup>\n<id>1</id>\n<name>Blacklist</name>\n</pbgroup>\n';
