@@ -232,18 +232,18 @@ app.post('/api/contacts/sync-ucm', requireLogin, requireAdmin, async (req, res) 
         // TAHAP 3: Cari action yang tepat untuk daftar ekstensi
         console.log('--- TAHAP 3: MENCARI DAFTAR EKSTENSI ---');
         const actions = [
-            'listSIPExtension',
-            'listExtension', 
-            'getSIPAccountList',
             'getExtenList',
+            'getAccountList',
+            'listAccount',
             'listSIPAccount',
+            'listExtension',
+            'getSIPAccountList',
             'listPJSIPExtension',
             'getPJSIPExtenList',
-            'listAccount',
-            'getAccountList',
             'getSIPExtensionList',
             'listSIPUsers',
-            'getSIPUsers'
+            'getSIPUsers',
+            'getExtensions'
         ];
 
         let extResult = null;
@@ -252,13 +252,15 @@ app.post('/api/contacts/sync-ucm', requireLogin, requireAdmin, async (req, res) 
         for (const action of actions) {
             try {
                 console.log(`  Mencoba action: ${action}...`);
+                // Hapus cookie dari payload JSON, cukup lewat HTTP Header (cookie) saja
                 const r = await ucmPost(C.host, C.port, '/api', { 
-                    request: { action, cookie: apiCookie } 
+                    request: { action } 
                 }, cookie);
                 const parsed = JSON.parse(r.data);
                 console.log(`  [${action}] status: ${parsed.status} | response keys: ${Object.keys(parsed.response || {}).join(', ')}`);
                 
-                if (parsed.status === 0 && parsed.response && Object.keys(parsed.response).length > 0) {
+                // Status 0 artinya sukses
+                if (parsed.status === 0 && parsed.response) {
                     extResult = parsed;
                     winningAction = action;
                     console.log(`\n  [+] ACTION DITEMUKAN: ${action}`);
