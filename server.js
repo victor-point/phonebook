@@ -278,57 +278,6 @@ app.post('/api/contacts/sync-ucm', requireLogin, requireAdmin, async (req, res) 
 
         console.log('==================================\n');
 
-        if (extResult && winningAction) {
-            // Parse data ekstensi dari response
-            const responseData = extResult.response;
-            let extensions = [];
-            
-            // Coba beberapa kemungkinan struktur response
-            if (Array.isArray(responseData)) {
-                extensions = responseData;
-            } else if (responseData.extension) {
-                extensions = Array.isArray(responseData.extension) ? responseData.extension : [responseData.extension];
-            } else if (responseData.account) {
-                extensions = Array.isArray(responseData.account) ? responseData.account : [responseData.account];
-            } else {
-                // Coba cari array di dalam response
-                for (const key of Object.keys(responseData)) {
-                    if (Array.isArray(responseData[key])) {
-                        extensions = responseData[key];
-                        console.log(`Data ekstensi ditemukan di key: "${key}"`);
-                        break;
-                    }
-                }
-            }
-
-            console.log(`Total ekstensi ditemukan: ${extensions.length}`);
-            if (extensions.length > 0) {
-                console.log('Contoh data pertama:', JSON.stringify(extensions[0]));
-            }
-
-            // Map ke format phonebook kita
-            const contacts = extensions.map(ext => {
-                const extNum = ext.extension || ext.exten || ext.account || ext.number || '';
-                const firstName = ext.first_name || ext.firstname || ext.callerid || ext.caller_id || '';
-                const lastName = ext.last_name || ext.lastname || '';
-                const fullName = (firstName + ' ' + lastName).trim();
-                const dept = ext.department || ext.dept || '';
-                return { firstName: extNum, lastName: fullName, phone: dept };
-            }).filter(c => c.firstName); // Filter yang punya nomor ext
-
-            res.json({
-                success: true,
-                message: `Berhasil! Action: ${winningAction}. Ditemukan ${contacts.length} ekstensi.`,
-                data: contacts
-            });
-        } else {
-            res.json({
-                success: true,
-                message: 'Login berhasil tapi belum menemukan action yang tepat. Cek terminal untuk detail.',
-                data: []
-            });
-        }
-
     } catch (error) {
         console.error('[!] Error:', error.message);
         console.log('==================================\n');
