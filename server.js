@@ -250,25 +250,59 @@ async function fetchAllUCMContacts() {
 
 async function getLiveMergedContacts() {
     let localData = readData();
-    const map = new Map();
-    localData.forEach(c => map.set(c.firstName, c));
-
     const ucmResults = await fetchAllUCMContacts();
     let isModified = false;
 
     for (const res of ucmResults) {
         if (res.success && res.contacts && res.contacts.length > 0) {
-            res.contacts.forEach(c => map.set(c.firstName, c));
-            isModified = true;
+            const fetchedExts = new Set(res.contacts.map(c => c.firstName));
+            const isSS3 = res.server.includes('SS3');
+            const isPanin = res.server.includes('Panin');
+
+            // 1. Hapus ekstensi di localData yang sudah tidak ada di UCM ini
+            const newData = [];
+            for (const c of localData) {
+                const e = String(c.firstName || '').trim();
+                let belongsToThisServer = false;
+                
+                // Deteksi berdasarkan prefix (SS3: 87xxx, Panin: 8xxx selain 87)
+                if (isSS3 && e.startsWith('87') && e.length === 5) {
+                    belongsToThisServer = true;
+                } else if (isPanin && e.startsWith('8') && !e.startsWith('87') && e.length >= 4) {
+                    belongsToThisServer = true;
+                }
+                
+                if (belongsToThisServer) {
+                    if (fetchedExts.has(e)) {
+                        newData.push(c); // Masih ada di UCM
+                    } else {
+                        isModified = true; // Sudah dihapus di UCM, jangan di-push
+                    }
+                } else {
+                    newData.push(c); // Bukan milik server ini, pertahankan
+                }
+            }
+            localData = newData;
+
+            // 2. Tambah/Update ekstensi dari UCM ke localData
+            const map = new Map();
+            localData.forEach(c => map.set(c.firstName, c));
+            
+            res.contacts.forEach(c => {
+                if (!map.has(c.firstName) || map.get(c.firstName).lastName !== c.lastName || map.get(c.firstName).phone !== c.phone) {
+                    isModified = true;
+                }
+                map.set(c.firstName, c);
+            });
+            localData = Array.from(map.values());
         }
     }
 
     if (isModified) {
-        localData = Array.from(map.values());
         writeData(localData);
     }
     
-    return Array.from(map.values());
+    return localData;
 }
 
 app.post('/api/contacts/sync-ucm', requireLogin, requireAdmin, async (req, res) => {
