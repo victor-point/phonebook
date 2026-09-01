@@ -137,19 +137,22 @@ const https = require('https');
 const crypto = require('crypto');
 
 // Konfigurasi Server UCM
-const UCM_OLD = {
-    host: '10.88.1.2',
-    port: 8443,
-    username: 'cdrapi',
-    password: 'cdrapi123'
-};
-
-const UCM_NEW = {
-    host: '10.88.1.2',
-    port: 8089,
-    username: 'api',
-    password: 'Chooper2108'
-};
+const UCM_SERVERS = [
+    {
+        name: 'UCM CMI-SS3',
+        host: '10.88.1.2',
+        port: 8089,
+        username: 'api',
+        password: 'Chooper2108'
+    },
+    {
+        name: 'UCM CMI-Panin',
+        host: '10.8.22.2',
+        port: 8443,
+        username: 'cdrapi',
+        password: 'cdrapi123'
+    }
+];
 
 // Helper: HTTPS GET request
 function ucmGet(host, port, path) {
@@ -198,8 +201,7 @@ function ucmPost(host, port, path, body, cookie) {
 
 
 // ===== FUNGSI: Ambil Data Langsung dari UCM (Live Fetch) =====
-async function fetchUCMContacts() {
-    const C = UCM_NEW;
+async function fetchUCMContacts(C) {
     const chRes = await ucmPost(C.host, C.port, '/api', { request: { action: 'challenge', user: C.username } });
     const chData = JSON.parse(chRes.data);
     if (chData.status !== 0) throw new Error('Challenge gagal');
@@ -232,27 +234,65 @@ async function fetchUCMContacts() {
     }).filter(c => c.firstName);
 }
 
+async function fetchAllUCMContacts() {
+    const promises = UCM_SERVERS.map(async (server) => {
+        try {
+            const contacts = await fetchUCMContacts(server);
+            return { server: server.name, success: true, contacts };
+        } catch (error) {
+            console.error(`[UCM Fetch Error] ${server.name} (${server.host}):`, error.message);
+            return { server: server.name, success: false, error: error.message, contacts: [] };
+        }
+    });
+
+    return await Promise.all(promises);
+}
+
 async function getLiveMergedContacts() {
     let localData = readData();
-    try {
-        const ucmContacts = await fetchUCMContacts();
-        if (ucmContacts && ucmContacts.length > 0) {
-            const map = new Map();
-            localData.forEach(c => map.set(c.firstName, c));
-            ucmContacts.forEach(c => map.set(c.firstName, c));
-            localData = Array.from(map.values());
-            writeData(localData);
+    const map = new Map();
+    localData.forEach(c => map.set(c.firstName, c));
+
+    const ucmResults = await fetchAllUCMContacts();
+    let isModified = false;
+
+    for (const res of ucmResults) {
+        if (res.success && res.contacts && res.contacts.length > 0) {
+            res.contacts.forEach(c => map.set(c.firstName, c));
+            isModified = true;
         }
-    } catch (e) {
-        console.error("[Live Fetch Error]:", e.message);
     }
-    return localData;
+
+    if (isModified) {
+        localData = Array.from(map.values());
+        writeData(localData);
+    }
+    
+    return Array.from(map.values());
 }
 
 app.post('/api/contacts/sync-ucm', requireLogin, requireAdmin, async (req, res) => {
     try {
-        const contacts = await fetchUCMContacts();
-        res.json({ success: true, message: `Berhasil sinkronisasi ${contacts.length} ekstensi dari UCM.`, data: contacts });
+        const ucmResults = await fetchAllUCMContacts();
+        let totalContacts = 0;
+        let messages = [];
+        let allContacts = [];
+
+        ucmResults.forEach(r => {
+            if (r.success) {
+                totalContacts += r.contacts.length;
+                messages.push(`${r.server}: ${r.contacts.length} kontak`);
+                allContacts = allContacts.concat(r.contacts);
+            } else {
+                messages.push(`${r.server}: Gagal (${r.error})`);
+            }
+        });
+
+        res.json({ 
+            success: true, 
+            message: `Sinkronisasi selesai.\n${messages.join('\\n')}`, 
+            data: allContacts 
+        });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
