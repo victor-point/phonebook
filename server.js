@@ -148,7 +148,7 @@ const UCM_SERVERS = [
     {
         name: 'UCM CMI-Panin',
         host: '10.8.22.2',
-        port: 8443,
+        port: 8089, // Changed from 8443 to 8089
         username: 'cdrapi',
         password: 'cdrapi123'
     }
