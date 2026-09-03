@@ -459,18 +459,21 @@ app.get('/phonebook.xml', async (req, res) => {
 // 1. Main Menu
 app.get('/xmlapp', (req, res) => {
     const host = req.get('host');
-    let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+    let xml = `<?xml version="1.0" encoding="utf-8"?>\n`;
     xml += `<GrandstreamXML>\n`;
-    xml += `  <Menu name="App Phonebook">\n`;
-    xml += `    <MenuItem>\n`;
-    xml += `      <Prompt>Cari Kontak</Prompt>\n`;
-    xml += `      <URI>http://${host}/xmlapp/search</URI>\n`;
-    xml += `    </MenuItem>\n`;
-    xml += `    <MenuItem>\n`;
-    xml += `      <Prompt>Semua Kontak</Prompt>\n`;
-    xml += `      <URI>http://${host}/xmlapp/results</URI>\n`;
-    xml += `    </MenuItem>\n`;
-    xml += `  </Menu>\n`;
+    xml += `    <Page>\n`;
+    xml += `        <Title>App Phonebook</Title>\n`;
+    xml += `        <Menu>\n`;
+    xml += `            <MenuItem>\n`;
+    xml += `                <Prompt>Cari Kontak</Prompt>\n`;
+    xml += `                <URI>http://${host}/xmlapp/search</URI>\n`;
+    xml += `            </MenuItem>\n`;
+    xml += `            <MenuItem>\n`;
+    xml += `                <Prompt>Semua Kontak</Prompt>\n`;
+    xml += `                <URI>http://${host}/xmlapp/results</URI>\n`;
+    xml += `            </MenuItem>\n`;
+    xml += `        </Menu>\n`;
+    xml += `    </Page>\n`;
     xml += `</GrandstreamXML>`;
     res.type('application/xml');
     res.send(xml);
@@ -479,17 +482,20 @@ app.get('/xmlapp', (req, res) => {
 // 2. Search Input Screen
 app.get('/xmlapp/search', (req, res) => {
     const host = req.get('host');
-    let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+    let xml = `<?xml version="1.0" encoding="utf-8"?>\n`;
     xml += `<GrandstreamXML>\n`;
-    xml += `  <InputScreen>\n`;
-    xml += `    <DisplayString>Cari Nama/Ext:</DisplayString>\n`;
-    xml += `    <URL>http://${host}/xmlapp/results</URL>\n`;
-    xml += `    <InputField>\n`;
-    xml += `      <Prompt>Keyword</Prompt>\n`;
-    xml += `      <Parameter>q</Parameter>\n`;
-    xml += `      <Type>alpha</Type>\n`;
-    xml += `    </InputField>\n`;
-    xml += `  </InputScreen>\n`;
+    xml += `  <Page>\n`;
+    xml += `    <Title>Cari Kontak</Title>\n`;
+    xml += `    <InputScreen>\n`;
+    xml += `      <DisplayString>Cari Nama/Ext:</DisplayString>\n`;
+    xml += `      <URL>http://${host}/xmlapp/results</URL>\n`;
+    xml += `      <InputField>\n`;
+    xml += `        <Prompt>Keyword</Prompt>\n`;
+    xml += `        <Parameter>q</Parameter>\n`;
+    xml += `        <Type>alpha</Type>\n`;
+    xml += `      </InputField>\n`;
+    xml += `    </InputScreen>\n`;
+    xml += `  </Page>\n`;
     xml += `</GrandstreamXML>`;
     res.type('application/xml');
     res.send(xml);
@@ -505,27 +511,30 @@ app.get('/xmlapp/results', async (req, res) => {
         (c.firstName || '').toLowerCase().includes(q)
     );
 
-    let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+    let xml = `<?xml version="1.0" encoding="utf-8"?>\n`;
     xml += `<GrandstreamXML>\n`;
-    xml += `  <Directory name="${q ? 'Hasil: ' + escapeXML(req.query.q || '') : 'Semua Kontak'}">\n`;
+    xml += `  <Page>\n`;
+    xml += `    <Title>${q ? 'Hasil: ' + escapeXML(req.query.q || '') : 'Semua Kontak'}</Title>\n`;
+    xml += `    <Directory name="Contacts">\n`;
     
     if (filtered.length === 0) {
-        xml += `    <DirectoryEntry>\n`;
-        xml += `      <Name>Tidak ditemukan</Name>\n`;
-        xml += `      <Telephone></Telephone>\n`;
-        xml += `    </DirectoryEntry>\n`;
+        xml += `      <DirectoryEntry>\n`;
+        xml += `        <Name>Tidak ditemukan</Name>\n`;
+        xml += `        <Telephone></Telephone>\n`;
+        xml += `      </DirectoryEntry>\n`;
     } else {
         filtered.forEach(c => {
             const name = c.lastName ? escapeXML(c.lastName) : 'Tanpa Nama';
             const num = c.firstName ? escapeXML(c.firstName) : '';
-            xml += `    <DirectoryEntry>\n`;
-            xml += `      <Name>${name}</Name>\n`;
-            xml += `      <Telephone>${num}</Telephone>\n`;
-            xml += `    </DirectoryEntry>\n`;
+            xml += `      <DirectoryEntry>\n`;
+            xml += `        <Name>${name}</Name>\n`;
+            xml += `        <Telephone>${num}</Telephone>\n`;
+            xml += `      </DirectoryEntry>\n`;
         });
     }
     
-    xml += `  </Directory>\n`;
+    xml += `    </Directory>\n`;
+    xml += `  </Page>\n`;
     xml += `</GrandstreamXML>`;
     res.type('application/xml');
     res.send(xml);
